@@ -15,10 +15,6 @@
 package pubsub
 
 import (
-	"context"
-	"log"
-	"sync"
-
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
@@ -51,7 +47,7 @@ const statsPrefix = "cloud.google.com/go/pubsub/"
 var (
 	// PublishedMessages is a measure of the number of messages published, which may include errors.
 	// It is EXPERIMENTAL and subject to change or removal without notice.
-	PublishedMessages = stats.Int64(statsPrefix+"published_messages", "Number of PubSub message published", stats.UnitDimensionless)
+	PublishedMessages = stats.Int64(statsPrefix+"published_messages", "Number of PubSub messages published", stats.UnitDimensionless)
 
 	// PublishLatency is a measure of the number of milliseconds it took to publish a bundle,
 	// which may consist of one or more messages.
@@ -197,21 +193,4 @@ func createDistView(m stats.Measure, keys ...tag.Key) *view.View {
 		Measure:     m,
 		Aggregation: view.Distribution(0, 25, 50, 75, 100, 200, 400, 600, 800, 1000, 2000, 4000, 6000),
 	}
-}
-
-var logOnce sync.Once
-
-// withSubscriptionKey returns a new context modified with the subscriptionKey tag map.
-func withSubscriptionKey(ctx context.Context, subName string) context.Context {
-	ctx, err := tag.New(ctx, tag.Upsert(keySubscription, subName))
-	if err != nil {
-		logOnce.Do(func() {
-			log.Printf("pubsub: error creating tag map for 'subscribe' key: %v", err)
-		})
-	}
-	return ctx
-}
-
-func recordStat(ctx context.Context, m *stats.Int64Measure, n int64) {
-	stats.Record(ctx, m.M(n))
 }

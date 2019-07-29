@@ -17,10 +17,13 @@ package pubsub
 import (
 	"context"
 	"io"
+	"log"
 	"sync"
 	"time"
 
 	gax "github.com/googleapis/gax-go/v2"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 	pb "google.golang.org/genproto/googleapis/pubsub/v1"
 	"google.golang.org/grpc"
 )
@@ -40,19 +43,26 @@ type pullStream struct {
 type streamingPullFunc func(context.Context, ...gax.CallOption) (pb.Subscriber_StreamingPullClient, error)
 
 func newPullStream(ctx context.Context, streamingPull streamingPullFunc, subName string) *pullStream {
-	ctx = withSubscriptionKey(ctx, subName)
+	ctx, err := tag.New(ctx, tag.Insert(keyStatus, "OK"), tag.Upsert(keySubscription, subName))
+	if err != nil {
+		log.Printf("pubsub: cannot create context with tags in newPullStream: %v", err)
+	}
 	return &pullStream{
 		ctx: ctx,
 		open: func() (pb.Subscriber_StreamingPullClient, error) {
 			spc, err := streamingPull(ctx, gax.WithGRPCOptions(grpc.MaxCallRecvMsgSize(maxSendRecvBytes)))
-			if err == nil {
-				recordStat(ctx, StreamRequestCount, 1)
-				err = spc.Send(&pb.StreamingPullRequest{
-					Subscription: subName,
-					// We modack messages when we receive them, so this value doesn't matter too much.
-					StreamAckDeadlineSeconds: 60,
-				})
+			if err != nil {
+				ctx, _ = tag.New(ctx, tag.Upsert(keyStatus, "ERROR"),
+					tag.Upsert(keyError, err.Error()))
+				stats.Record(ctx, StreamRequestCount.M(1))
+				return nil, err
 			}
+			stats.Record(ctx, StreamRequestCount.M(1))
+			err = spc.Send(&pb.StreamingPullRequest{
+				Subscription: subName,
+				// We modack messages when we receive them, so this value doesn't matter too much.
+				StreamAckDeadlineSeconds: 60,
+			})
 			if err != nil {
 				return nil, err
 			}

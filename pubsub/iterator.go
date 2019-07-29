@@ -17,12 +17,15 @@ package pubsub
 import (
 	"context"
 	"io"
+	"log"
 	"sync"
 	"time"
 
 	vkit "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/pubsub/internal/distribution"
 	gax "github.com/googleapis/gax-go/v2"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 	pb "google.golang.org/genproto/googleapis/pubsub/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -376,14 +379,23 @@ func (it *messageIterator) handleKeepAlives() {
 
 func (it *messageIterator) sendAck(m map[string]bool) bool {
 	return it.sendAckIDRPC(m, func(ids []string) error {
-		recordStat(it.ctx, AckCount, int64(len(ids)))
+		ctx, err := tag.New(it.ctx, tag.Insert(keyStatus, "OK"), tag.Upsert(keySubscription, it.subName))
+		if err != nil {
+			log.Printf("pubsub: cannot create context with tags in sendAck: %v", err)
+		}
 		addAcks(ids)
 		// Use context.Background() as the call's context, not it.ctx. We don't
 		// want to cancel this RPC when the iterator is stopped.
-		return it.subc.Acknowledge(context.Background(), &pb.AcknowledgeRequest{
+		err = it.subc.Acknowledge(context.Background(), &pb.AcknowledgeRequest{
 			Subscription: it.subName,
 			AckIds:       ids,
 		})
+		if err != nil {
+			ctx, _ = tag.New(ctx, tag.Upsert(keyStatus, "ERROR"),
+				tag.Upsert(keyError, err.Error()))
+		}
+		stats.Record(ctx, AckCount.M(int64(len(ids))))
+		return err
 	})
 }
 
@@ -392,6 +404,10 @@ func (it *messageIterator) sendAck(m map[string]bool) bool {
 // percentile in order to capture the highest amount of time necessary without
 // considering 1% outliers.
 func (it *messageIterator) sendModAck(m map[string]bool, deadline time.Duration) bool {
+	ctx, err := tag.New(it.ctx, tag.Insert(keyStatus, "OK"), tag.Upsert(keySubscription, it.subName))
+	if err != nil {
+		log.Printf("pubsub: cannot create context with tags in sendMockAck: %v", err)
+	}
 	return it.sendAckIDRPC(m, func(ids []string) error {
 		if deadline == 0 {
 			recordStat(it.ctx, NackCount, int64(len(ids)))
