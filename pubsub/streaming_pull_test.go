@@ -169,6 +169,85 @@ func TestStreamingPullCancel(t *testing.T) {
 	}
 }
 
+func TestStreamingPullCancel_NoMessages(t *testing.T) {
+	// If Receive's context is canceled, it should return after all callbacks
+	// return and all messages have been acked.
+	client, server := newMock(t)
+	defer server.srv.Close()
+	defer client.Close()
+	server.addStreamingPullMessages(testMessages)
+	sub := client.Subscription("S")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(100*time.Millisecond))
+	defer cancel()
+	var n int32
+
+	msgc := make(chan *Message)
+	var once sync.Once
+	go func() {
+		for {
+			m := <-msgc
+			once.Do(func() {
+				// time.Sleep(4 * time.Minute)
+				// cancel()
+			})
+			m.Nack()
+		}
+	}()
+
+	err := sub.Receive(ctx, func(ctx2 context.Context, m *Message) {
+		atomic.AddInt32(&n, 1)
+		// defer atomic.AddInt32(&n, -1)
+		msgc <- m
+	})
+	if got := atomic.LoadInt32(&n); got != 0 {
+		t.Fatalf("Receive returned with %d callbacks still running", got)
+	}
+	if err != nil {
+		t.Fatalf("Receive got <%v>, want nil", err)
+	}
+}
+
+func TestStreamingPullCancel_DeadlineExceeded(t *testing.T) {
+	// If Receive's context is canceled, it should return after all callbacks
+	// return and all messages have been acked.
+	client, server := newMock(t)
+	defer server.srv.Close()
+	defer client.Close()
+	// server.addStreamingPullMessages(testMessages)
+	sub := client.Subscription("S")
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(1000*time.Millisecond))
+	defer cancel()
+	var n int32
+
+	msgc := make(chan *Message)
+	var once sync.Once
+	go func() {
+		for {
+			m := <-msgc
+			once.Do(func() {
+				// time.Sleep(4 * time.Minute)
+				// cancel()
+			})
+			m.Nack()
+		}
+	}()
+
+	err := sub.Receive(ctx, func(ctx2 context.Context, m *Message) {
+		atomic.AddInt32(&n, 1)
+		// defer atomic.AddInt32(&n, -1)
+		msgc <- m
+	})
+	if got := atomic.LoadInt32(&n); got != 0 {
+		t.Fatalf("Receive returned with %d callbacks still running", got)
+	}
+	if err != nil {
+		t.Fatalf("Receive got <%v>, want nil", err)
+	}
+	if ctx.Err() != nil {
+		t.Fatalf("got context error: %v", ctx.Err())
+	}
+}
+
 func TestStreamingPullRetry(t *testing.T) {
 	// Check that we retry on io.EOF or Unavailable.
 	t.Parallel()
