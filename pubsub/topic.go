@@ -109,7 +109,7 @@ var DefaultPublishSettings = PublishSettings{
 	DelayThreshold: 10 * time.Millisecond,
 	CountThreshold: 100,
 	ByteThreshold:  1e6,
-	Timeout:        60 * time.Second,
+	Timeout:        600 * time.Second,
 	// By default, limit the bundler to 10 times the max message size. The number 10 is
 	// chosen as a reasonable amount of messages in the worst case whilst still
 	// capping the number to a low enough value to not OOM users.
