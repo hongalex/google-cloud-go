@@ -25,6 +25,7 @@ import (
 
 	"cloud.google.com/go/iam"
 	"cloud.google.com/go/internal/optional"
+	ipubsub "cloud.google.com/go/internal/pubsub"
 	"cloud.google.com/go/pubsub/internal/scheduler"
 	gax "github.com/googleapis/gax-go/v2"
 	"golang.org/x/sync/errgroup"
@@ -986,9 +987,9 @@ func (s *Subscription) Receive(ctx context.Context, f func(context.Context, *Mes
 					ackh, _ := msgAckHandler(msg)
 					old := ackh.doneFunc
 					msgLen := len(msg.Data)
-					ackh.doneFunc = func(ackID string, ack bool, receiveTime time.Time) {
+					ackh.doneFunc = func(ackID string, ack bool, r *ipubsub.AckResult, receiveTime time.Time) {
 						defer fc.release(ctx, msgLen)
-						old(ackID, ack, receiveTime)
+						old(ackID, ack, r, receiveTime)
 					}
 					wg.Add(1)
 					// Make sure the subscription has ordering enabled before adding to scheduler.
