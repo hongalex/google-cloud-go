@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	ipubsub "cloud.google.com/go/internal/pubsub"
 	vkit "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/pubsub/internal/distribution"
 	gax "github.com/googleapis/gax-go/v2"
@@ -66,6 +67,7 @@ type messageIterator struct {
 	pendingNacks       map[string]*AckResult
 	pendingModAcks     map[string]*AckResult // ack IDs whose ack deadline is to be modified
 	err                error                 // error from stream failure
+	enableExactlyOnce  bool
 }
 
 // newMessageIterator starts and returns a new messageIterator.
@@ -262,6 +264,7 @@ func (it *messageIterator) recvMessages() ([]*pb.ReceivedMessage, error) {
 	if err != nil {
 		return nil, err
 	}
+	it.enableExactlyOnce = res.GetSubscriptionProperties().GetExactlyOnceDeliveryEnabled()
 	return res.ReceivedMessages, nil
 }
 
@@ -419,10 +422,18 @@ func (it *messageIterator) sendAck(m map[string]*AckResult) bool {
 				if err := gax.Sleep(cctx, bo.Pause()); err != nil {
 					return nil
 				}
+			case codes.PermissionDenied:
+				if it.enableExactlyOnce {
+					for _, r := range m {
+						ipubsub.SetAckResult(r, ipubsub.AckResponsePermissionDenied, err)
+					}
+					return nil
+				}
 			default:
 				// TODO(b/226593754): by default, errors should not be fatal unless exactly once is enabled
 				// since acks are "fire and forget". Once EOS feature is out, retry these errors
 				// if exactly-once is enabled, which can be determined from StreamingPull response.
+
 				return nil
 			}
 		}
@@ -497,7 +508,6 @@ func (it *messageIterator) sendAckIDRPC(ackIDSet map[string]*AckResult, maxSize 
 	}
 	var toSend []string
 	for len(ackIDs) > 0 {
-		// TODO(hongalex): join ackresult to these ackIDs so we can report the status of these later
 		toSend, ackIDs = splitRequestIDs(ackIDs, maxSize)
 		if err := call(toSend); err != nil {
 			// The underlying client handles retries, so any error is fatal to the

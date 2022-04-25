@@ -130,7 +130,9 @@ func (r *AckResult) Get(ctx context.Context) (res AckResponse, err error) {
 
 // NewAckResult creates a AckResult.
 func NewAckResult() *AckResult {
-	return &AckResult{ready: make(chan struct{})}
+	return &AckResult{
+		ready: make(chan struct{}),
+	}
 }
 
 // SetAckResult sets the ack response and error for a ack result and closes
@@ -145,7 +147,7 @@ var (
 	errMissingAckHandler = errors.New("pubsub: missing ack handler")
 )
 
-// AckWithResponse acknowledges a message in Pub/Sub and it will not be
+// AckWithResult acknowledges a message in Pub/Sub and it will not be
 // delivered to this subscription again.
 //
 // You should avoid acknowledging messages until you have
@@ -159,29 +161,25 @@ var (
 // contain an exception with more details about the failure and the
 // message may be re-delivered.
 //
-// If exactly-once delivery is NOT enabled on the subscription, the
-// future returns immediately with an AcknowledgeStatus.SUCCESS.
+// If exactly-once delivery is NOT enabled on the subscription, AckResult
+// readies immediately with a AckResponse.Success.
 // Since acks in Cloud Pub/Sub are best effort when exactly-once
 // delivery is disabled, the message may be re-delivered. Because
 // re-deliveries are possible, you should ensure that your processing
 // code is idempotent, as you may receive any given message more than
 // once.
-func (m *Message) AckWithResponse() *AckResult {
+func (m *Message) AckWithResult() *AckResult {
 	if m.ackh != nil {
 		return m.ackh.OnAckWithResult()
 	}
-	r := NewAckResult()
-	SetAckResult(r, AckResponseOther, errMissingAckHandler)
-	return r
+	return nil
 }
 
-func (m *Message) NackWithResponse() *AckResult {
+func (m *Message) NackWithResult() *AckResult {
 	if m.ackh != nil {
 		return m.ackh.OnNackWithResult()
 	}
-	r := NewAckResult()
-	SetAckResult(r, AckResponseOther, errMissingAckHandler)
-	return r
+	return nil
 }
 
 // NewMessage creates a message with an AckHandler implementation, which should

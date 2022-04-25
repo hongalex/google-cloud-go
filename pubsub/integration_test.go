@@ -1978,3 +1978,41 @@ func TestIntegration_TopicRetention(t *testing.T) {
 		t.Fatalf("expected cleared retention duration, got: %v", got)
 	}
 }
+
+func TestIntegration_ExactlyOnce(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	client := integrationTestClient(ctx, t)
+	defer client.Close()
+
+	topicID := newID("topic")
+	topicID = "eot"
+	// topic, err := client.CreateTopic(ctx, topicID)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	topic := client.Topic(topicID)
+	// subID := newID("sub")
+	subID := "eos"
+	// sub, err := client.CreateSubscription(ctx, subID, SubscriptionConfig{
+	// 	Topic:                     topic,
+	// 	EnableExactlyOnceDelivery: true,
+	// })
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	sub := client.Subscription(subID)
+
+	topic.Publish(ctx, &Message{
+		Data: []byte("test"),
+	})
+	ctx2, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	sub.Receive(ctx2, func(ctx context.Context, m *Message) {
+		m.Ack()
+	})
+}
+
+func newID(r string) string {
+	return fmt.Sprintf("%s-%d", r, time.Now().UnixNano())
+}
