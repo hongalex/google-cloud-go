@@ -41,6 +41,7 @@ import (
 	"google.golang.org/api/option"
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 	pb "google.golang.org/genproto/googleapis/pubsub/v1"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -1985,8 +1986,8 @@ func TestIntegration_ExactlyOnce(t *testing.T) {
 	client := integrationTestClient(ctx, t)
 	defer client.Close()
 
-	topicID := newID("topic")
-	topicID = "eot"
+	// topicID := newID("topic")
+	topicID := "eot"
 	// topic, err := client.CreateTopic(ctx, topicID)
 	// if err != nil {
 	// 	t.Fatal(err)
@@ -2006,11 +2007,39 @@ func TestIntegration_ExactlyOnce(t *testing.T) {
 	topic.Publish(ctx, &Message{
 		Data: []byte("test"),
 	})
-	ctx2, cancel := context.WithTimeout(ctx, 60*time.Second)
+	ctx2, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	sub.Receive(ctx2, func(ctx context.Context, m *Message) {
 		m.Ack()
 	})
+}
+
+func TestIntegration_ExactlyOnce2(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	client := integrationTestClient(ctx, t)
+	defer client.Close()
+
+	// err := client.subc.Acknowledge(ctx, &pb.AcknowledgeRequest{
+	// 	Subscription: "projects/alxh-pubsub/subscriptions/eos",
+	// 	AckIds:       []string{"1"},
+	// })
+
+	err := client.subc.ModifyAckDeadline(ctx, &pb.ModifyAckDeadlineRequest{
+		Subscription:       "projects/alxh-pubsub/subscriptions/eos1",
+		AckIds:             []string{"1", "2", "3"},
+		AckDeadlineSeconds: 30,
+	})
+	fmt.Printf("got err: %+v\n", err)
+	status, _ := status.FromError(err)
+	fmt.Printf("got err: %+v\n", err)
+	fmt.Printf("got status: %+v\n", status)
+	fmt.Printf("Status Details: %s\n", status.Details())
+	for _, details := range status.Details() {
+		errInfo, _ := details.(*errdetails.ErrorInfo)
+		fmt.Printf("got errInfo: %v\n", errInfo)
+	}
+
 }
 
 func newID(r string) string {

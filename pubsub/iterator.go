@@ -16,16 +16,17 @@ package pubsub
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strings"
 	"sync"
 	"time"
 
-	ipubsub "cloud.google.com/go/internal/pubsub"
 	vkit "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/pubsub/internal/distribution"
 	gax "github.com/googleapis/gax-go/v2"
 	pb "google.golang.org/genproto/googleapis/pubsub/v1"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -422,18 +423,37 @@ func (it *messageIterator) sendAck(m map[string]*AckResult) bool {
 				if err := gax.Sleep(cctx, bo.Pause()); err != nil {
 					return nil
 				}
-			case codes.PermissionDenied:
-				if it.enableExactlyOnce {
-					for _, r := range m {
-						ipubsub.SetAckResult(r, ipubsub.AckResponsePermissionDenied, err)
-					}
-					return nil
-				}
 			default:
+				st, _ := status.FromError(err)
+				fmt.Printf("got err: %+v\n", err)
+				fmt.Printf("got status: %+v\n", st)
+				fmt.Printf("Status Details: %s\n", st.Details())
+				for _, details := range st.Details() {
+					errInfo, ok := details.(*errdetails.ErrorInfo)
+					if ok {
+						return nil
+					}
+					fmt.Printf("got errInfo: %v\n", errInfo)
+				}
+
+				err = it.subc.Acknowledge(cctx2, &pb.AcknowledgeRequest{
+					Subscription: it.subName,
+					AckIds:       ids,
+				})
+				st, _ = status.FromError(err)
+				fmt.Printf("2nd got err: %+v\n", err)
+				fmt.Printf("2nd got status: %+v\n", st)
+				fmt.Printf("2nd Status Details: %s\n", st.Details())
+				for _, details := range st.Details() {
+					errInfo, ok := details.(*errdetails.ErrorInfo)
+					if ok {
+						return nil
+					}
+					fmt.Printf("2nd got errInfo: %v\n", errInfo)
+				}
 				// TODO(b/226593754): by default, errors should not be fatal unless exactly once is enabled
 				// since acks are "fire and forget". Once EOS feature is out, retry these errors
 				// if exactly-once is enabled, which can be determined from StreamingPull response.
-
 				return nil
 			}
 		}
@@ -506,6 +526,7 @@ func (it *messageIterator) sendAckIDRPC(ackIDSet map[string]*AckResult, maxSize 
 	for k := range ackIDSet {
 		ackIDs = append(ackIDs, k)
 	}
+	fmt.Printf("ack ids to send: %v\n", ackIDs)
 	var toSend []string
 	for len(ackIDs) > 0 {
 		toSend, ackIDs = splitRequestIDs(ackIDs, maxSize)
@@ -587,3 +608,13 @@ func (it *messageIterator) ackDeadline() time.Duration {
 	}
 	return pt
 }
+
+// func getAckErrors(err error) map[string]string {
+// 	st, ok := status.FromError(err)
+// 	if !ok {
+// 		return nil
+// 	}
+// 	for _, detail := range st.Details() {
+// 		info, _ := detail.(*errdetails.ErrorInfo)
+// 	}
+// }

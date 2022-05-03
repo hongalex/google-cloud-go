@@ -435,3 +435,38 @@ func TestOrdering_CreateSubscription(t *testing.T) {
 		msg.Ack()
 	})
 }
+
+func TestExactlyOnceSubscribe(t *testing.T) {
+	ctx := context.Background()
+	c, srv := newFake(t)
+	defer c.Close()
+	defer srv.Close()
+
+	topic, err := c.CreateTopic(ctx, "exactly-once-topic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := topic.Publish(ctx, &Message{
+		Data: []byte("foo"),
+	})
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if _, err = res.Get(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	sub, err := c.CreateSubscription(ctx, "eos", SubscriptionConfig{
+		Topic:                     topic,
+		EnableExactlyOnceDelivery: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = sub.Receive(ctx, func(ctx context.Context, m *Message) {
+		m.Ack()
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

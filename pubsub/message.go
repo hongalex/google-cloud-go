@@ -137,3 +137,8 @@ func (ah *psAckHandler) done(ack bool) {
 		ah.doneFunc(ah.ackID, ack, ah.ackResult, ah.receiveTime)
 	}
 }
+
+// func newSuccessAckResult() *AckResult {
+// 	ar := ipubsub.NewAckResult()
+// 	ipubsub.SetAckResult(r, ipubsub.AckResponseSuccess, nil)
+// }
