@@ -140,8 +140,8 @@ func TestAckDistribution(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	minAckDeadline = 1 * time.Second
-	pstest.SetMinAckDeadline(minAckDeadline)
+	minDurationPerLeaseExtension = time.Duration(1 * time.Second)
+	pstest.SetMinAckDeadline(minDurationPerLeaseExtension)
 	srv := pstest.NewServer()
 	defer srv.Close()
 	defer pstest.ResetMinAckDeadline()
@@ -190,7 +190,7 @@ func TestAckDistribution(t *testing.T) {
 
 		modacks := modacksByTime(srv.Messages())
 		u := modackDeadlines(modacks)
-		initialDL := int32(minAckDeadline / time.Second)
+		initialDL := int32(minDurationPerLeaseExtension / time.Second)
 		if !setsAreEqual(u, []int32{initialDL, testcase.initialProcessSecs, testcase.finalProcessSecs}) {
 			t.Fatalf("Expected modack deadlines to contain (exactly, and only) %ds, %ds, %ds. Instead, got %v",
 				initialDL, testcase.initialProcessSecs, testcase.finalProcessSecs, toSet(u))
@@ -273,7 +273,7 @@ func startSending(t *testing.T, queuedMsgs chan int32, processTimeSecs *int32, i
 	recvdWg.Add(1)
 	msg++
 	queuedMsgs <- msg
-	<-time.After(minAckDeadline)
+	<-time.After(minDurationPerLeaseExtension)
 
 	t.Logf("Sending some messages to update distribution to %d. This new distribution will be used "+
 		"when the next batch of messages go out.", initialProcessSecs)

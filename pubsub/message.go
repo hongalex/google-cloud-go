@@ -37,13 +37,15 @@ import (
 type Message = ipubsub.Message
 
 // msgAckHandler performs a safe cast of the message's ack handler to psAckHandler.
-func msgAckHandler(m *Message) (*psAckHandler, bool) {
+// It also sets the exactly once flag determining if the message should be delivered exactly once.
+func msgAckHandler(m *Message, eo bool) (*psAckHandler, bool) {
 	ackh, ok := ipubsub.MessageAckHandler(m).(*psAckHandler)
+	ackh.exactlyOnce = eo
 	return ackh, ok
 }
 
 func msgAckID(m *Message) string {
-	if ackh, ok := msgAckHandler(m); ok {
+	if ackh, ok := msgAckHandler(m, false); ok {
 		return ackh.ackID
 	}
 	return ""
@@ -106,6 +108,8 @@ type psAckHandler struct {
 	doneFunc iterDoneFunc
 
 	ackResult *AckResult
+
+	exactlyOnce bool
 }
 
 func (ah *psAckHandler) OnAck() {
@@ -117,12 +121,18 @@ func (ah *psAckHandler) OnNack() {
 }
 
 func (ah *psAckHandler) OnAckWithResult() *AckResult {
+	if !ah.exactlyOnce {
+		return newSuccessAckResult()
+	}
 	ah.ackResult = ipubsub.NewAckResult()
 	ah.done(true)
 	return ah.ackResult
 }
 
 func (ah *psAckHandler) OnNackWithResult() *AckResult {
+	if !ah.exactlyOnce {
+		return newSuccessAckResult()
+	}
 	ah.ackResult = ipubsub.NewAckResult()
 	ah.done(false)
 	return ah.ackResult
@@ -138,7 +148,9 @@ func (ah *psAckHandler) done(ack bool) {
 	}
 }
 
-// func newSuccessAckResult() *AckResult {
-// 	ar := ipubsub.NewAckResult()
-// 	ipubsub.SetAckResult(r, ipubsub.AckResponseSuccess, nil)
-// }
+// newSuccessAckResult returns an AckResult that resolves to success immediately.
+func newSuccessAckResult() *AckResult {
+	ar := ipubsub.NewAckResult()
+	ipubsub.SetAckResult(ar, ipubsub.AckResponseSuccess, nil)
+	return ar
+}

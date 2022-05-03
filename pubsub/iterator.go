@@ -39,6 +39,12 @@ import (
 // of the actual deadline.
 const gracePeriod = 5 * time.Second
 
+var (
+	maxDurationPerLeaseExtension            = 10 * time.Minute
+	minDurationPerLeaseExtension            = 10 * time.Second
+	minDurationPerLeaseExtensionExactlyOnce = 1 * time.Minute
+)
+
 type messageIterator struct {
 	ctx        context.Context
 	cancel     func() // the function that will cancel ctx; called in stop
@@ -88,7 +94,7 @@ func newMessageIterator(subc *vkit.SubscriberClient, subName string, po *pullOpt
 	}
 	// The period will update each tick based on the distribution of acks. We'll start by arbitrarily sending
 	// the first keepAlive halfway towards the minimum ack deadline.
-	keepAlivePeriod := minAckDeadline / 2
+	keepAlivePeriod := minDurationPerLeaseExtension / 2
 
 	// Ack promptly so users don't lose work if client crashes.
 	ackTicker := time.NewTicker(100 * time.Millisecond)
@@ -109,7 +115,7 @@ func newMessageIterator(subc *vkit.SubscriberClient, subName string, po *pullOpt
 		pingTicker:         pingTicker,
 		failed:             make(chan struct{}),
 		drained:            make(chan struct{}),
-		ackTimeDist:        distribution.New(int(maxAckDeadline/time.Second) + 1),
+		ackTimeDist:        distribution.New(int(maxDurationPerLeaseExtension/time.Second) + 1),
 		keepAliveDeadlines: map[string]time.Time{},
 		pendingAcks:        map[string]*AckResult{},
 		pendingNacks:       map[string]*AckResult{},
@@ -597,14 +603,32 @@ func splitRequestIDs(ids []string, maxSize int) (prefix, remainder []string) {
 func (it *messageIterator) ackDeadline() time.Duration {
 	pt := time.Duration(it.ackTimeDist.Percentile(.99)) * time.Second
 
+	// Respect the user specified maxExtensionPeriod.
 	if it.po.maxExtensionPeriod > 0 && pt > it.po.maxExtensionPeriod {
 		return it.po.maxExtensionPeriod
 	}
-	if pt > maxAckDeadline {
-		return maxAckDeadline
+	// If the user didn't specify a max and the value is too large,
+	// respect the default maximum ack deadline.
+	if pt > maxDurationPerLeaseExtension {
+		return maxDurationPerLeaseExtension
 	}
-	if pt < minAckDeadline {
-		return minAckDeadline
+	// Respect the user specified minExtensionPeriod.
+	if it.po.minExtensionPeriod > 0 && pt < it.po.minExtensionPeriod {
+		return it.po.minExtensionPeriod
+	}
+	// If the user didn't specify a min and the value is too small, we need
+	// to check if exactly once is enabled. If so, the default should be 1 minute.
+	// Otherwise, we can use the default min ack deadline.
+	if pt < minDurationPerLeaseExtension {
+		if it.enableExactlyOnce {
+			return minDurationPerLeaseExtensionExactlyOnce
+		}
+		return minDurationPerLeaseExtension
+	}
+	// Lastly, we need to still again if exactly once is enabled. If so,
+	// we should respect this minimum.
+	if it.enableExactlyOnce && pt < minDurationPerLeaseExtensionExactlyOnce {
+		return minDurationPerLeaseExtensionExactlyOnce
 	}
 	return pt
 }

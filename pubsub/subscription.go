@@ -534,9 +534,18 @@ type ReceiveSettings struct {
 	// bounds the maximum amount of time before a message redelivery in the
 	// event the subscriber fails to extend the deadline.
 	//
-	// MaxExtensionPeriod configuration can be disabled by specifying a
-	// duration less than (or equal to) 0.
+	// MaxExtensionPeriod must be between 10 and 600 (inclusive). This configuration
+	// can be disabled by specifying a duration less than (or equal to) 0.
 	MaxExtensionPeriod time.Duration
+
+	// MinExtensionPeriod is the the min duration for a single lease extension attempt.
+	// By default the 99th percentile of ack latency is used to determine lease extension
+	// periods but this value can be set to minimize the number of extraneous RPCs sent.
+	//
+	// MinExtensionPeriod must be between 10 and 600 (inclusive). This configuration
+	// can be disabled by specifying a duration less than (or equal to) 0.
+	// Defaults to off but set to 60 seconds if the subscription has exactly-once delivery enabled.
+	MinExtensionPeriod time.Duration
 
 	// MaxOutstandingMessages is the maximum number of unprocessed messages
 	// (unacknowledged but not yet expired). If MaxOutstandingMessages is 0, it
@@ -599,13 +608,11 @@ type ReceiveSettings struct {
 // idea of a duration that is short, but not so short that we perform excessive RPCs.
 const synchronousWaitTime = 100 * time.Millisecond
 
-// This is a var so that tests can change it.
-var minAckDeadline = 10 * time.Second
-
 // DefaultReceiveSettings holds the default values for ReceiveSettings.
 var DefaultReceiveSettings = ReceiveSettings{
 	MaxExtension:           60 * time.Minute,
 	MaxExtensionPeriod:     0,
+	MinExtensionPeriod:     0,
 	MaxOutstandingMessages: 1000,
 	MaxOutstandingBytes:    1e9, // 1G
 	NumGoroutines:          10,
@@ -805,7 +812,11 @@ func (c *Client) CreateSubscription(ctx context.Context, id string, cfg Subscrip
 		return nil, errors.New("pubsub: require non-nil Topic")
 	}
 	if cfg.AckDeadline == 0 {
-		cfg.AckDeadline = 10 * time.Second
+		if cfg.EnableExactlyOnceDelivery {
+			cfg.AckDeadline = 1 * time.Minute
+		} else {
+			cfg.AckDeadline = 10 * time.Second
+		}
 	}
 	if d := cfg.AckDeadline; d < 10*time.Second || d > 600*time.Second {
 		return nil, fmt.Errorf("ack deadline must be between 10 and 600 seconds; got: %v", d)
@@ -876,8 +887,13 @@ func (s *Subscription) Receive(ctx context.Context, f func(context.Context, *Mes
 		maxExt = 0
 	}
 	maxExtPeriod := s.ReceiveSettings.MaxExtensionPeriod
-	if maxExtPeriod < 0 {
-		maxExtPeriod = 0
+	if maxExtPeriod <= 0 {
+		maxExtPeriod = DefaultReceiveSettings.MaxExtensionPeriod
+	}
+
+	minExt := s.ReceiveSettings.MinExtensionPeriod
+	if minExt <= 0 {
+		minExt = DefaultReceiveSettings.MinExtensionPeriod
 	}
 
 	var numGoroutines int
@@ -893,6 +909,7 @@ func (s *Subscription) Receive(ctx context.Context, f func(context.Context, *Mes
 	po := &pullOptions{
 		maxExtension:           maxExt,
 		maxExtensionPeriod:     maxExtPeriod,
+		minExtensionPeriod:     minExt,
 		maxPrefetch:            trunc32(int64(maxCount)),
 		synchronous:            s.ReceiveSettings.Synchronous,
 		maxOutstandingMessages: maxCount,
@@ -1001,7 +1018,7 @@ func (s *Subscription) Receive(ctx context.Context, f func(context.Context, *Mes
 						// Return nil if the context is done, not err.
 						return nil
 					}
-					ackh, _ := msgAckHandler(msg)
+					ackh, _ := msgAckHandler(msg, iter.enableExactlyOnce)
 					old := ackh.doneFunc
 					msgLen := len(msg.Data)
 					ackh.doneFunc = func(ackID string, ack bool, r *ipubsub.AckResult, receiveTime time.Time) {
@@ -1062,7 +1079,8 @@ func (s *Subscription) checkOrdering(ctx context.Context) {
 
 type pullOptions struct {
 	maxExtension       time.Duration // the maximum time to extend a message's ack deadline in total
-	maxExtensionPeriod time.Duration // the maximum time to extend a message's ack deadline per modack rpc
+	maxExtensionPeriod time.Duration // the maximum time to extend a message's ack deadline per lease extension
+	minExtensionPeriod time.Duration // the minimum time to extend a message's ack deadline per lease extension
 	maxPrefetch        int32         // the max number of outstanding messages, used to calculate maxToPull
 	// If true, use unary Pull instead of StreamingPull, and never pull more
 	// than maxPrefetch messages.
