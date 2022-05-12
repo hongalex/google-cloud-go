@@ -611,38 +611,6 @@ func boundedDuration(t, minExtension, maxExtension time.Duration, exactlyOnce bo
 	return ackDeadline
 }
 
-// func boundedDuration(t, minExtension, maxExtension time.Duration, exactlyOnce bool) time.Duration {
-// 	// Respect the user specified maxExtensionPeriod.
-// 	if maxExtension > 0 && t > maxExtension {
-// 		return maxExtension
-// 	}
-// 	// If the user didn't specify a max and the value is too large,
-// 	// respect the default maximum ack deadline.
-// 	if t > maxDurationPerLeaseExtension {
-// 		return maxDurationPerLeaseExtension
-// 	}
-// 	// Respect the user specified minExtensionPeriod.
-// 	if minExtension > 0 && t < minExtension {
-// 		return minDuration(minExtension, maxDurationPerLeaseExtension)
-// 	}
-
-// 	// // If the user didn't specify a min and the value is too small, we need
-// 	// // to check if exactly once is enabled. If so, the default should be 1 minute.
-// 	// // Otherwise, we can use the default min ack deadline.
-// 	// if t < minDurationPerLeaseExtension {
-// 	// 	if exactlyOnce {
-// 	// 		return minDurationPerLeaseExtensionExactlyOnce
-// 	// 	}
-// 	// 	return minDurationPerLeaseExtension
-// 	// }
-// 	// // // Lastly, we need to check again if exactly once is enabled. If so,
-// 	// // // we should respect this minimum.
-// 	// // if it.enableExactlyOnce && pt < minDurationPerLeaseExtensionExactlyOnce {
-// 	// // 	return minDurationPerLeaseExtensionExactlyOnce
-// 	// // }
-// 	return t
-// }
-
 func minDuration(x, y time.Duration) time.Duration {
 	if x < y {
 		return x
