@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	ipubsub "cloud.google.com/go/internal/pubsub"
 	vkit "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/pubsub/internal/distribution"
 	gax "github.com/googleapis/gax-go/v2"
@@ -157,9 +158,19 @@ func (it *messageIterator) checkDrained() {
 	}
 }
 
+// Given a receiveTime, add the elapsed time to the iterator's ack distribution.
+// These values are bounded by the ModifyAckDeadline limits, which are
+// min/maxDurationPerLeaseExtension.
+func (it *messageIterator) addToDistribution(receiveTime time.Time) {
+	d := time.Since(receiveTime)
+	d = minDuration(d, minDurationPerLeaseExtension)
+	d = maxDuration(d, maxDurationPerLeaseExtension)
+	it.ackTimeDist.Record(int(d / time.Second))
+}
+
 // Called when a message is acked/nacked.
 func (it *messageIterator) done(ackID string, ack bool, r *AckResult, receiveTime time.Time) {
-	it.ackTimeDist.Record(int(time.Since(receiveTime) / time.Second))
+	it.addToDistribution(receiveTime)
 	it.mu.Lock()
 	defer it.mu.Unlock()
 	delete(it.keepAliveDeadlines, ackID)
@@ -430,33 +441,9 @@ func (it *messageIterator) sendAck(m map[string]*AckResult) bool {
 					return nil
 				}
 			default:
-				st, _ := status.FromError(err)
-				fmt.Printf("got err: %+v\n", err)
-				fmt.Printf("got status: %+v\n", st)
-				fmt.Printf("Status Details: %s\n", st.Details())
-				for _, details := range st.Details() {
-					errInfo, ok := details.(*errdetails.ErrorInfo)
-					if ok {
-						return nil
-					}
-					fmt.Printf("got errInfo: %v\n", errInfo)
-				}
-
-				err = it.subc.Acknowledge(cctx2, &pb.AcknowledgeRequest{
-					Subscription: it.subName,
-					AckIds:       ids,
-				})
-				st, _ = status.FromError(err)
-				fmt.Printf("2nd got err: %+v\n", err)
-				fmt.Printf("2nd got status: %+v\n", st)
-				fmt.Printf("2nd Status Details: %s\n", st.Details())
-				for _, details := range st.Details() {
-					errInfo, ok := details.(*errdetails.ErrorInfo)
-					if ok {
-						return nil
-					}
-					fmt.Printf("2nd got errInfo: %v\n", errInfo)
-				}
+				errorStatus := getStatus(err)
+				ackErrorsMap := getAckErrors(err)
+				processRequests(errorStatus, m, ackErrorsMap)
 				// TODO(b/226593754): by default, errors should not be fatal unless exactly once is enabled
 				// since acks are "fire and forget". Once EOS feature is out, retry these errors
 				// if exactly-once is enabled, which can be determined from StreamingPull response.
@@ -532,7 +519,7 @@ func (it *messageIterator) sendAckIDRPC(ackIDSet map[string]*AckResult, maxSize 
 	for k := range ackIDSet {
 		ackIDs = append(ackIDs, k)
 	}
-	fmt.Printf("ack ids to send: %v\n", ackIDs)
+	// fmt.Printf("ack ids to send: %v\n", ackIDs)
 	var toSend []string
 	for len(ackIDs) > 0 {
 		toSend, ackIDs = splitRequestIDs(ackIDs, maxSize)
@@ -598,47 +585,134 @@ func splitRequestIDs(ids []string, maxSize int) (prefix, remainder []string) {
 // on the time it takes to process messages. The percentile chosen is the 99%th
 // percentile - that is, processing times up to the 99%th longest processing
 // times should be safe. The highest 1% may expire. This number was chosen
-// as a way to cover most users' usecases without losing the value of
+// as a way to cover most users' use cases without losing the value of
 // expiration.
 func (it *messageIterator) ackDeadline() time.Duration {
 	pt := time.Duration(it.ackTimeDist.Percentile(.99)) * time.Second
 
-	// Respect the user specified maxExtensionPeriod.
-	if it.po.maxExtensionPeriod > 0 && pt > it.po.maxExtensionPeriod {
-		return it.po.maxExtensionPeriod
-	}
-	// If the user didn't specify a max and the value is too large,
-	// respect the default maximum ack deadline.
-	if pt > maxDurationPerLeaseExtension {
-		return maxDurationPerLeaseExtension
-	}
-	// Respect the user specified minExtensionPeriod.
-	if it.po.minExtensionPeriod > 0 && pt < it.po.minExtensionPeriod {
-		return it.po.minExtensionPeriod
-	}
-	// If the user didn't specify a min and the value is too small, we need
-	// to check if exactly once is enabled. If so, the default should be 1 minute.
-	// Otherwise, we can use the default min ack deadline.
-	if pt < minDurationPerLeaseExtension {
-		if it.enableExactlyOnce {
-			return minDurationPerLeaseExtensionExactlyOnce
-		}
-		return minDurationPerLeaseExtension
-	}
-	// Lastly, we need to still again if exactly once is enabled. If so,
-	// we should respect this minimum.
-	if it.enableExactlyOnce && pt < minDurationPerLeaseExtensionExactlyOnce {
-		return minDurationPerLeaseExtensionExactlyOnce
-	}
-	return pt
+	return boundedDuration(pt, it.po.minExtensionPeriod, it.po.maxExtensionPeriod, it.enableExactlyOnce)
 }
 
-// func getAckErrors(err error) map[string]string {
-// 	st, ok := status.FromError(err)
-// 	if !ok {
-// 		return nil
+func boundedDuration(t, minExtension, maxExtension time.Duration, exactlyOnce bool) time.Duration {
+	ackDeadline := t
+	// If the user explicitly sets a maxExtensionPeriod, respect it.
+	if maxExtension > 0 {
+		ackDeadline = minDuration(ackDeadline, maxExtension)
+	}
+
+	// If the user explicitly sets a minExtensionPeriod, respect it.
+	if minExtension > 0 {
+		ackDeadline = maxDuration(ackDeadline, minExtension)
+	} else if exactlyOnce {
+		// Higher minimum ack_deadline for subscriptions with
+		// exactly-once delivery enabled.
+		ackDeadline = maxDuration(ackDeadline, minDurationPerLeaseExtensionExactlyOnce)
+	}
+	return ackDeadline
+}
+
+// func boundedDuration(t, minExtension, maxExtension time.Duration, exactlyOnce bool) time.Duration {
+// 	// Respect the user specified maxExtensionPeriod.
+// 	if maxExtension > 0 && t > maxExtension {
+// 		return maxExtension
 // 	}
-// 	for _, detail := range st.Details() {
-// 		info, _ := detail.(*errdetails.ErrorInfo)
+// 	// If the user didn't specify a max and the value is too large,
+// 	// respect the default maximum ack deadline.
+// 	if t > maxDurationPerLeaseExtension {
+// 		return maxDurationPerLeaseExtension
 // 	}
+// 	// Respect the user specified minExtensionPeriod.
+// 	if minExtension > 0 && t < minExtension {
+// 		return minDuration(minExtension, maxDurationPerLeaseExtension)
+// 	}
+
+// 	// // If the user didn't specify a min and the value is too small, we need
+// 	// // to check if exactly once is enabled. If so, the default should be 1 minute.
+// 	// // Otherwise, we can use the default min ack deadline.
+// 	// if t < minDurationPerLeaseExtension {
+// 	// 	if exactlyOnce {
+// 	// 		return minDurationPerLeaseExtensionExactlyOnce
+// 	// 	}
+// 	// 	return minDurationPerLeaseExtension
+// 	// }
+// 	// // // Lastly, we need to check again if exactly once is enabled. If so,
+// 	// // // we should respect this minimum.
+// 	// // if it.enableExactlyOnce && pt < minDurationPerLeaseExtensionExactlyOnce {
+// 	// // 	return minDurationPerLeaseExtensionExactlyOnce
+// 	// // }
+// 	return t
 // }
+
+func minDuration(x, y time.Duration) time.Duration {
+	if x < y {
+		return x
+	}
+	return y
+}
+
+func maxDuration(x, y time.Duration) time.Duration {
+	if x > y {
+		return x
+	}
+	return y
+}
+
+func getStatus(err error) *status.Status {
+	st, ok := status.FromError(err)
+	if !ok {
+		return nil
+	}
+	return st
+}
+
+func getAckErrors(err error) map[string]string {
+	st := getStatus(err)
+	if st != nil {
+		for _, detail := range st.Details() {
+			info, _ := detail.(*errdetails.ErrorInfo)
+			return info.GetMetadata()
+		}
+	}
+	return nil
+}
+
+// processRequests processes requests by referring to error_status and errors_dict.
+// The errors returned by the server in as `error_status` or in `errors_dict`
+// are used to complete the request futures in `ack_reqs_dict` (with a success
+// or exception) or to return requests for further retries.
+func processRequests(errorStatus *status.Status, ackReqsMap map[string]*AckResult, errorsMap map[string]string) ([]*AckResult, []*AckResult) {
+	var completedResults, retryResults []*AckResult
+	for ackID, res := range ackReqsMap {
+		if errorsMap != nil {
+			if exactlyOnceErrStr, ok := errorsMap[ackID]; ok {
+				if strings.HasPrefix(exactlyOnceErrStr, "TRANSIENT_") {
+					retryResults = append(retryResults, res)
+				} else {
+					exactlyOnceErr := fmt.Errorf(exactlyOnceErrStr)
+					if exactlyOnceErrStr == "PERMANENT_FAILURE_INVALID_ACK_ID" {
+						ipubsub.SetAckResult(res, ipubsub.AckResponseInvalidAckID, exactlyOnceErr)
+					} else {
+						ipubsub.SetAckResult(res, ipubsub.AckResponseOther, exactlyOnceErr)
+					}
+					completedResults = append(completedResults, res)
+				}
+			}
+		} else if errorStatus != nil {
+			switch errorStatus.Code() {
+			case codes.PermissionDenied:
+				ipubsub.SetAckResult(res, ipubsub.AckResponsePermissionDenied, errorStatus.Err())
+			case codes.FailedPrecondition:
+				ipubsub.SetAckResult(res, ipubsub.AckResponseFailedPrecondition, errorStatus.Err())
+			default:
+				ipubsub.SetAckResult(res, ipubsub.AckResponseOther, errorStatus.Err())
+			}
+			completedResults = append(completedResults, res)
+		} else if res != nil {
+			ipubsub.SetAckResult(res, ipubsub.AckResponseSuccess, nil)
+			completedResults = append(completedResults, res)
+		} else {
+			completedResults = append(completedResults, res)
+		}
+	}
+	return completedResults, retryResults
+}

@@ -2020,26 +2020,25 @@ func TestIntegration_ExactlyOnce2(t *testing.T) {
 	client := integrationTestClient(ctx, t)
 	defer client.Close()
 
+	var ackIDs []string
 	// err := client.subc.Acknowledge(ctx, &pb.AcknowledgeRequest{
 	// 	Subscription: "projects/alxh-pubsub/subscriptions/eos",
-	// 	AckIds:       []string{"1"},
+	// 	AckIds:       ackIDs,
 	// })
 
 	err := client.subc.ModifyAckDeadline(ctx, &pb.ModifyAckDeadlineRequest{
-		Subscription:       "projects/alxh-pubsub/subscriptions/eos1",
-		AckIds:             []string{"1", "2", "3"},
+		Subscription:       "projects/alxh-pubsub/subscriptions/eos",
+		AckIds:             ackIDs,
 		AckDeadlineSeconds: 30,
 	})
-	fmt.Printf("got err: %+v\n", err)
 	status, _ := status.FromError(err)
 	fmt.Printf("got err: %+v\n", err)
 	fmt.Printf("got status: %+v\n", status)
 	fmt.Printf("Status Details: %s\n", status.Details())
 	for _, details := range status.Details() {
 		errInfo, _ := details.(*errdetails.ErrorInfo)
-		fmt.Printf("got errInfo: %v\n", errInfo)
+		fmt.Printf("got errInfo: %+v\n", errInfo)
 	}
-
 }
 
 func newID(r string) string {

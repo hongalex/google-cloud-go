@@ -421,3 +421,69 @@ func TestIterator_SynchronousPullCancel(t *testing.T) {
 		t.Fatalf("Got error in pullMessages: %v", err)
 	}
 }
+
+func TestIterator_BoundedDuration(t *testing.T) {
+	// Use exported fields here so time.Duration fields print nicely.
+	// Otherwise, the durations will print as an integer.
+	// In these test cases, T (which is the 99% percentile)
+	// is already bounded by min/max ack deadline, which are
+	// 10 seconds and 600 seconds respectively.
+	testCases := []struct {
+		T            time.Duration
+		MinExtension time.Duration
+		MaxExtension time.Duration
+		ExactlyOnce  bool
+		Want         time.Duration
+	}{
+		{
+			T:            time.Duration(10 * time.Second),
+			MinExtension: time.Duration(15 * time.Second),
+			MaxExtension: time.Duration(10 * time.Minute),
+			ExactlyOnce:  false,
+			Want:         time.Duration(15 * time.Second),
+		},
+		{
+			T:            time.Duration(10 * time.Second),
+			MinExtension: 0,
+			MaxExtension: time.Duration(10 * time.Minute),
+			ExactlyOnce:  true,
+			Want:         time.Duration(1 * time.Minute),
+		},
+		{
+			T:            time.Duration(10 * time.Second),
+			MinExtension: time.Duration(15 * time.Second),
+			MaxExtension: time.Duration(10 * time.Minute),
+			ExactlyOnce:  true,
+			Want:         time.Duration(15 * time.Second),
+		},
+		{
+			T:            time.Duration(10 * time.Minute),
+			MinExtension: time.Duration(15 * time.Second),
+			MaxExtension: time.Duration(10 * time.Minute),
+			ExactlyOnce:  true,
+			Want:         time.Duration(10 * time.Minute),
+		},
+		{
+			T:            time.Duration(5 * time.Minute),
+			MinExtension: 0,
+			MaxExtension: 0,
+			ExactlyOnce:  false,
+			Want:         time.Duration(5 * time.Minute),
+		},
+		{
+			T:            time.Duration(5 * time.Minute),
+			MinExtension: time.Duration(1 * time.Minute),
+			MaxExtension: time.Duration(7 * time.Minute),
+			ExactlyOnce:  false,
+			Want:         time.Duration(5 * time.Minute),
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("boundedDuration %d", i), func(t *testing.T) {
+			got := boundedDuration(tc.T, tc.MinExtension, tc.MaxExtension, tc.ExactlyOnce)
+			if got != tc.Want {
+				t.Errorf("boundedDuration mismatch:\n%+v\ngot: %v, want: %v", tc, got, tc.Want)
+			}
+		})
+	}
+}
