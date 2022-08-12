@@ -75,6 +75,16 @@ func (ah *pslAckHandler) OnNack() {
 	ah.subInstance = nil
 }
 
+func (ah *pslAckHandler) OnAckWithResult() *ipubsub.AckResult {
+	ah.OnAck()
+	return nil
+}
+
+func (ah *pslAckHandler) OnNackWithResult() *ipubsub.AckResult {
+	ah.OnNack()
+	return nil
+}
+
 // wireSubscriberFactory is a factory for creating wire subscribers, which can
 // be overridden with a mock in unit tests.
 type wireSubscriberFactory interface {
