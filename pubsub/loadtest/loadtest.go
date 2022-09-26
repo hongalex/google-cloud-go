@@ -103,6 +103,10 @@ func (l *PubServer) publishBatch() ([]int64, error) {
 	latencies := make([]int64, cfg.batchSize)
 	startStr := strconv.FormatInt(start.UnixNano()/1e6, 10)
 	seqNum := atomic.AddInt32(&l.seqNum, cfg.batchSize) - cfg.batchSize
+	cfg.topic.PublishSettings.FlowControlSettings = pubsub.FlowControlSettings{
+		MaxOutstandingMessages: 1000,
+		LimitExceededBehavior:  pubsub.FlowControlBlock,
+	}
 
 	rs := make([]*pubsub.PublishResult, cfg.batchSize)
 	for i := int32(0); i < cfg.batchSize; i++ {

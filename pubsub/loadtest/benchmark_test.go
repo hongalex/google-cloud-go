@@ -28,10 +28,18 @@ import (
 
 	"cloud.google.com/go/internal/testutil"
 	"cloud.google.com/go/pubsub"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"google.golang.org/api/option"
 	gtransport "google.golang.org/api/transport/grpc"
 	pb "google.golang.org/genproto/googleapis/pubsub/v1"
 	"google.golang.org/grpc"
+
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+
+	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 )
 
 // These constants are designed to match the "throughput" test in
@@ -111,6 +119,29 @@ func perfClient(pubDelay time.Duration, nConns int, f interface {
 	if err != nil {
 		f.Fatal(err)
 	}
+
+	var exporter sdktrace.SpanExporter
+	exporter, err = texporter.New(texporter.WithProjectID("alxh-pubsub"))
+	if err != nil {
+		log.Fatalf("texporter.NewExporter: %v", err)
+	}
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+
+	resources := resource.NewWithAttributes(
+		semconv.SchemaURL,
+	)
+
+	ratio := 0.01
+	log.Printf("creating tracer provider, sampling at: %f\n", ratio)
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(resources),
+		sdktrace.WithSampler(
+			sdktrace.TraceIDRatioBased(ratio),
+		),
+	)
+	defer tp.ForceFlush(ctx) // flushes any pending spans
+	otel.SetTracerProvider(tp)
 	client, err := pubsub.NewClient(ctx, "projectID", option.WithGRPCConn(conn))
 	if err != nil {
 		f.Fatal(err)
