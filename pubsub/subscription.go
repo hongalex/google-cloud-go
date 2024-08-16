@@ -474,7 +474,7 @@ type SubscriptionConfig struct {
 	name string
 
 	// The topic from which this subscription is receiving messages.
-	Topic *Topic
+	Topic *Publisher
 
 	// If push delivery is used with this subscription, this field is
 	// used to configure it. At most one of `PushConfig`, `BigQueryConfig`,
@@ -663,7 +663,7 @@ func protoToSubscriptionConfig(pbSub *pb.Subscription, c *Client) (SubscriptionC
 	rp := protoToRetryPolicy(pbSub.RetryPolicy)
 	subC := SubscriptionConfig{
 		name:                          pbSub.Name,
-		Topic:                         newTopic(c, pbSub.Topic),
+		Topic:                         newPublisher(c, pbSub.Topic),
 		AckDeadline:                   time.Second * time.Duration(pbSub.AckDeadlineSeconds),
 		RetainAckedMessages:           pbSub.RetainAckedMessages,
 		RetentionDuration:             rd,

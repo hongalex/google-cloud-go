@@ -952,7 +952,7 @@ func TestTryDeliverMessage(t *testing.T) {
 		{availStreamIdx: 2, expectedOutIdx: 1}, // s0, s1 (deleted), s2, s3 becomes s0, s2, s3. So we expect outIdx=1.
 		{availStreamIdx: 3, expectedOutIdx: 2}, // s0, s1 (deleted), s2, s3 becomes s0, s2, s3. So we expect outIdx=2.
 	} {
-		top := newTopic(&pb.Topic{Name: "some-topic"})
+		top := newPublisher(&pb.Topic{Name: "some-topic"})
 		sub := newSubscription(top, &sync.Mutex{}, time.Now, nil, &pb.Subscription{Name: "some-sub", Topic: "some-topic"})
 
 		done := make(chan struct{}, 1)

@@ -28,6 +28,8 @@ import (
 
 	"cloud.google.com/go/internal/testutil"
 	"cloud.google.com/go/pubsub"
+	admingen "cloud.google.com/go/pubsub/admingen"
+	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
@@ -254,7 +256,7 @@ loop:
 }
 
 // publish publishes n messages to topic.
-func publish(ctx context.Context, topic *pubsub.Topic, n int) error {
+func publish(ctx context.Context, topic *pubsub.Publisher, n int) error {
 	var rs []*pubsub.PublishResult
 	for i := 0; i < n; i++ {
 		m := &pubsub.Message{Data: []byte(fmt.Sprintf("msg %d", i))}
@@ -336,7 +338,7 @@ func (c *consumer) process(_ context.Context, m *pubsub.Message) {
 }
 
 // Remember to call cleanup!
-func prepareEndToEndTest(ctx context.Context, t *testing.T) (*pubsub.Client, *pubsub.Topic, func()) {
+func prepareEndToEndTest(ctx context.Context, t *testing.T) (*pubsub.Client, *pubsub.Publisher, func()) {
 	if testing.Short() {
 		t.Skip("Integration tests skipped in short mode")
 	}
@@ -353,34 +355,40 @@ func prepareEndToEndTest(ctx context.Context, t *testing.T) (*pubsub.Client, *pu
 		t.Fatalf("Creating client error: %v", err)
 	}
 
+	topicClient, err := admingen.NewTopicAdminClient(ctx)
+	if err != nil {
+		t.Fatalf("Creating TopicAdminClient error: %v", err)
+	}
+
 	// Don't stop the test if cleanup failed.
 	if err := cleanupSubscription(ctx, client); err != nil {
 		t.Logf("Pre-test subscription cleanup failed: %v", err)
 	}
-	if err := cleanupTopic(ctx, client); err != nil {
+	if err := cleanupTopic(ctx, testutil.ProjID(), topicClient); err != nil {
 		t.Logf("Pre-test topic cleanup failed: %v", err)
 	}
 
-	var topic *pubsub.Topic
-	if topic, err = client.CreateTopic(ctx, topicName); err != nil {
-		t.Fatalf("CreateTopic error: %v", err)
-	}
+	publisher := client.Publisher(topicName)
 
-	return client, topic, func() {
-		topic.Delete(ctx)
+	return client, publisher, func() {
+		publisher.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{
+			Topic: fmt.Sprintf("projects/%s/topics/%s", testutil.ProjID(), topicName),
+		})
 		client.Close()
 	}
 }
 
 // cleanupTopic deletes stale testing topics.
-func cleanupTopic(ctx context.Context, client *pubsub.Client) error {
+func cleanupTopic(ctx context.Context, project string, client *admingen.TopicAdminClient) error {
 	if testing.Short() {
 		return nil // Don't clean up in short mode.
 	}
 	// Delete topics which were	created a while ago.
 	const expireAge = 24 * time.Hour
 
-	it := client.Topics(ctx)
+	it := client.ListTopics(ctx, &pubsubpb.ListTopicsRequest{
+		Project: fmt.Sprintf("projects/%s", project),
+	})
 	for {
 		t, err := it.Next()
 		if err == iterator.Done {
@@ -390,7 +398,9 @@ func cleanupTopic(ctx context.Context, client *pubsub.Client) error {
 			return err
 		}
 		// Take timestamp from id.
-		tID := t.ID()
+		tName := t.GetName()
+		tt := strings.Split(tName, "/")
+		tID := tt[len(tt)-1]
 		p := strings.Split(tID, "-")
 
 		// Only delete resources created from the endtoend test.
@@ -404,7 +414,7 @@ func cleanupTopic(ctx context.Context, client *pubsub.Client) error {
 			timeTCreated := time.Unix(0, timestamp)
 			if time.Since(timeTCreated) > expireAge {
 				log.Printf("deleting topic %q", tID)
-				if err := t.Delete(ctx); err != nil {
+				if err := client.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: tName}); err != nil {
 					return fmt.Errorf("Delete topic: %v: %v", t.String(), err)
 				}
 			}

@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	admingen "cloud.google.com/go/pubsub/admingen"
+	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	"cloud.google.com/go/pubsub/pstest"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -49,11 +51,17 @@ func TestStreamTimeout(t *testing.T) {
 	}
 	defer client.Close()
 
-	topic, err := client.CreateTopic(ctx, "T")
+	topicAdminClient, err := admingen.NewTopicAdminClient(ctx)
+
+	_, err = topicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{
+		Name: "projects/P/topics/T",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	sub, err := client.CreateSubscription(ctx, "sub", SubscriptionConfig{Topic: topic, AckDeadline: 10 * time.Second})
+	publisher := client.Publisher("T")
+
+	sub, err := client.CreateSubscription(ctx, "sub", SubscriptionConfig{Topic: publisher, AckDeadline: 10 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +81,7 @@ func TestStreamTimeout(t *testing.T) {
 	}()
 
 	for i := 0; i < nPublish; i++ {
-		pr := topic.Publish(ctx, &Message{Data: []byte("msg")})
+		pr := publisher.Publish(ctx, &Message{Data: []byte("msg")})
 		_, err := pr.Get(ctx)
 		if err != nil {
 			t.Fatal(err)

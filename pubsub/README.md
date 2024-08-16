@@ -22,7 +22,7 @@ Then use the client to publish and subscribe:
 [snip]:# (pubsub-2)
 ```go
 // Publish "hello world" on topic1.
-topic := client.Topic("topic1")
+topic := client.Publisher("topic1")
 res := topic.Publish(ctx, &pubsub.Message{
 	Data: []byte("hello world"),
 })

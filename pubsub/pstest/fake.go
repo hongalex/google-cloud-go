@@ -337,7 +337,7 @@ func (s *GServer) CreateTopic(_ context.Context, t *pb.Topic) (*pb.Topic, error)
 	if t.IngestionDataSourceSettings != nil {
 		t.State = pb.Topic_ACTIVE
 	}
-	top := newTopic(t)
+	top := newPublisher(t)
 	s.topics[t.Name] = top
 	return top.proto, nil
 }
@@ -844,7 +844,7 @@ type topic struct {
 	subs  map[string]*subscription
 }
 
-func newTopic(pt *pb.Topic) *topic {
+func newPublisher(pt *pb.Topic) *topic {
 	return &topic{
 		proto: pt,
 		subs:  map[string]*subscription{},

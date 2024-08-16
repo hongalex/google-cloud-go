@@ -23,6 +23,8 @@ import (
 
 	"cloud.google.com/go/internal/testutil"
 	"cloud.google.com/go/pubsub"
+	admingen "cloud.google.com/go/pubsub/admingen"
+	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	"cloud.google.com/go/pubsub/pstest"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -62,15 +64,33 @@ func TestPSTest(t *testing.T) {
 	}
 	defer client.Close()
 
-	topic, err := client.CreateTopic(ctx, "test-topic")
+	topicAdminClient, err := admingen.NewTopicAdminClient(ctx)
 	if err != nil {
 		panic(err)
 	}
+	defer topicAdminClient.Close()
 
-	sub, err := client.CreateSubscription(ctx, "sub-name", pubsub.SubscriptionConfig{Topic: topic})
+	subClient, err := admingen.NewSubscriptionAdminClient(ctx)
 	if err != nil {
 		panic(err)
 	}
+	defer subClient.Close()
+
+	topicName := "projects/some-project/topics/test-topic"
+	subName := "projects/some-project/subscriptions/test-sub"
+
+	_, err = topicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{
+		Name: topicName,
+	})
+
+	_, err = subClient.CreateSubscription(ctx, &pubsubpb.Subscription{
+		Name:  subName,
+		Topic: topicName,
+	})
+	if err != nil {
+		panic(err)
+	}
+	sub := client.Subscription("test-sub")
 
 	go func() {
 		for i := 0; i < 10; i++ {

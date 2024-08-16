@@ -61,7 +61,7 @@ var ErrOversizedMessage = bundler.ErrOversizedItem
 //
 // The methods of Publisher are safe for use by multiple goroutines.
 type Publisher struct {
-	admin *admingen.TopicAdminClient
+	Admin *admingen.TopicAdminClient
 
 	c *Client
 	// The fully qualified identifier for the topic, in the format "projects/<projid>/topics/<name>"

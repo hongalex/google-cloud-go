@@ -63,7 +63,7 @@ func (s *Snapshot) SetLabels(ctx context.Context, label map[string]string) (*Sna
 // SnapshotConfig contains the details of a Snapshot.
 type SnapshotConfig struct {
 	*Snapshot
-	Topic      *Topic
+	Topic      *Publisher
 	Expiration time.Time
 	// The set of labels for the snapshot.
 	Labels map[string]string
@@ -169,7 +169,7 @@ func toSnapshotConfig(snap *pb.Snapshot, c *Client) (*SnapshotConfig, error) {
 	exp := snap.ExpireTime.AsTime()
 	return &SnapshotConfig{
 		Snapshot:   &Snapshot{c: c, name: snap.Name},
-		Topic:      newTopic(c, snap.Topic),
+		Topic:      newPublisher(c, snap.Topic),
 		Expiration: exp,
 		Labels:     snap.Labels,
 	}, nil

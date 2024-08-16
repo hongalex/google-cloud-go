@@ -66,7 +66,8 @@ func TestClient_ApplyClientConfig(t *testing.T) {
 		MessageIds: []string{"1"},
 	}, nil)
 
-	topic, err := c.CreateTopic(ctx, "t")
+	// topic, err := c.CreateTopic(ctx, "t")
+	topic, err := createPublisherWithRetry(ctx, t, c, "t")
 	if err != nil {
 		t.Fatal(err)
 	}

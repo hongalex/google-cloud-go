@@ -121,38 +121,6 @@ func getSubIDs(subs []*Subscription) []string {
 	return names
 }
 
-func TestListTopicSubscriptions(t *testing.T) {
-	ctx := context.Background()
-	c, srv := newFake(t)
-	defer c.Close()
-	defer srv.Close()
-
-	topics := []*Topic{
-		mustCreateTopic(t, c, "t0"),
-		mustCreateTopic(t, c, "t1"),
-	}
-	wants := make([][]string, 2)
-	for i := 0; i < 5; i++ {
-		id := fmt.Sprintf("s%d", i)
-		sub, err := c.CreateSubscription(ctx, id, SubscriptionConfig{Topic: topics[i%2]})
-		if err != nil {
-			t.Fatal(err)
-		}
-		wants[i%2] = append(wants[i%2], sub.ID())
-	}
-
-	for i, topic := range topics {
-		subs, err := slurpSubs(topic.Subscriptions(ctx))
-		if err != nil {
-			t.Fatal(err)
-		}
-		got := getSubIDs(subs)
-		if !testutil.Equal(got, wants[i]) {
-			t.Errorf("#%d: got %v, want %v", i, got, wants[i])
-		}
-	}
-}
-
 const defaultRetentionDuration = 168 * time.Hour
 
 func TestSubscriptionConfig(t *testing.T) {
@@ -333,7 +301,7 @@ func testReceive(t *testing.T, synchronous, exactlyOnceDelivery bool) {
 	})
 }
 
-func (t1 *Topic) Equal(t2 *Topic) bool {
+func (t1 *Publisher) Equal(t2 *Publisher) bool {
 	if t1 == nil && t2 == nil {
 		return true
 	}

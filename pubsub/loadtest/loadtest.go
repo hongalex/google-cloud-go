@@ -36,7 +36,7 @@ import (
 )
 
 type pubServerConfig struct {
-	topic     *pubsub.Topic
+	topic     *pubsub.Publisher
 	msgData   []byte
 	batchSize int32
 	ordered   bool
@@ -64,7 +64,7 @@ func (l *PubServer) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartR
 }
 
 func (l *PubServer) init(c *pubsub.Client, topicName string, msgSize, batchSize int32, batchDur time.Duration, ordered bool) {
-	topic := c.Topic(topicName)
+	topic := c.Publisher(topicName)
 	topic.PublishSettings = pubsub.PublishSettings{
 		DelayThreshold:    batchDur,
 		CountThreshold:    950,

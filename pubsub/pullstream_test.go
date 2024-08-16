@@ -101,10 +101,7 @@ func TestPullStreamGet_ResourceUnavailable(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	topic, err := client.CreateTopic(ctx, "foo")
-	if err != nil {
-		t.Fatal(err)
-	}
+	topic := mustCreateTopic(t, client, "foo")
 	sub, err := client.CreateSubscription(ctx, "foo", SubscriptionConfig{
 		Topic: topic,
 	})
