@@ -28,8 +28,6 @@ import (
 	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	"cloud.google.com/go/pubsub/pstest"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/support/bundler"
 	"google.golang.org/grpc"
@@ -37,191 +35,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func checkTopicListing(t *testing.T, c *Client, want []string) {
-	topics, err := slurpTopics(c.Topics(context.Background()))
-	if err != nil {
-		t.Fatalf("error listing topics: %v", err)
-	}
-	var got []string
-	for _, topic := range topics {
-		got = append(got, topic.ID())
-	}
-	if !testutil.Equal(got, want) {
-		t.Errorf("topic list: got: %v, want: %v", got, want)
-	}
-}
-
-// All returns the remaining topics from this iterator.
-func slurpTopics(it *TopicIterator) ([]*Topic, error) {
-	var topics []*Topic
-	for {
-		switch topic, err := it.Next(); err {
-		case nil:
-			topics = append(topics, topic)
-		case iterator.Done:
-			return topics, nil
-		default:
-			return nil, err
-		}
-	}
-}
-
-func TestTopicID(t *testing.T) {
-	const id = "id"
-	c, srv := newFake(t)
-	defer c.Close()
-	defer srv.Close()
-
-	s := c.Topic(id)
-	if got, want := s.ID(), id; got != want {
-		t.Errorf("Topic.ID() = %q; want %q", got, want)
-	}
-}
-
-func TestCreateTopicWithConfig(t *testing.T) {
-	c, srv := newFake(t)
-	defer c.Close()
-	defer srv.Close()
-
-	id := "test-topic"
-	want := TopicConfig{
-		Labels: map[string]string{"label": "value"},
-		MessageStoragePolicy: MessageStoragePolicy{
-			AllowedPersistenceRegions: []string{"us-east1"},
-		},
-		KMSKeyName: "projects/P/locations/L/keyRings/R/cryptoKeys/K",
-		SchemaSettings: &SchemaSettings{
-			Schema:   "projects/P/schemas/S",
-			Encoding: EncodingJSON,
-		},
-		RetentionDuration: 5 * time.Hour,
-	}
-
-	topic := mustCreateTopicWithConfig(t, c, id, &want)
-	got, err := topic.Config(context.Background())
-	if err != nil {
-		t.Fatalf("error getting topic config: %v", err)
-	}
-	opt := cmpopts.IgnoreUnexported(TopicConfig{})
-	if !testutil.Equal(got, want, opt) {
-		t.Errorf("got %v, want %v", got, want)
-	}
-}
-
-func TestTopic_IngestionKinesis(t *testing.T) {
-	c, srv := newFake(t)
-	defer c.Close()
-	defer srv.Close()
-
-	id := "test-topic-kinesis"
-	want := TopicConfig{
-		IngestionDataSourceSettings: &IngestionDataSourceSettings{
-			Source: &IngestionDataSourceAWSKinesis{
-				StreamARN:         "fake-stream-arn",
-				ConsumerARN:       "fake-consumer-arn",
-				AWSRoleARN:        "fake-aws-role-arn",
-				GCPServiceAccount: "fake-gcp-sa",
-			},
-		},
-	}
-
-	topic := mustCreateTopicWithConfig(t, c, id, &want)
-	got, err := topic.Config(context.Background())
-	if err != nil {
-		t.Fatalf("error getting topic config: %v", err)
-	}
-	want.State = TopicStateActive
-	opt := cmpopts.IgnoreUnexported(TopicConfig{})
-	if !testutil.Equal(got, want, opt) {
-		t.Errorf("got %v, want %v", got, want)
-	}
-
-	// Update ingestion settings.
-	ctx := context.Background()
-	settings := &IngestionDataSourceSettings{
-		Source: &IngestionDataSourceAWSKinesis{
-			StreamARN:         "fake-stream-arn-2",
-			ConsumerARN:       "fake-consumer-arn-2",
-			AWSRoleARN:        "aws-role-arn-2",
-			GCPServiceAccount: "gcp-service-account-2",
-		},
-	}
-	config2, err := topic.Update(ctx, TopicConfigToUpdate{IngestionDataSourceSettings: settings})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !testutil.Equal(config2.IngestionDataSourceSettings, settings, opt) {
-		t.Errorf("\ngot  %+v\nwant %+v", config2.IngestionDataSourceSettings, settings)
-	}
-
-	// Clear schema settings.
-	settings = &IngestionDataSourceSettings{}
-	config3, err := topic.Update(ctx, TopicConfigToUpdate{IngestionDataSourceSettings: settings})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if config3.IngestionDataSourceSettings != nil {
-		t.Errorf("got: %+v, want nil", config3.IngestionDataSourceSettings)
-	}
-}
-
-func TestListTopics(t *testing.T) {
-	ctx := context.Background()
-	c, srv := newFake(t)
-	defer c.Close()
-	defer srv.Close()
-
-	var ids []string
-	numTopics := 4
-	for i := 0; i < numTopics; i++ {
-		id := fmt.Sprintf("t%d", i)
-		ids = append(ids, id)
-		mustCreateTopic(t, c, id)
-	}
-	checkTopicListing(t, c, ids)
-
-	var tt []*TopicConfig
-	it := c.Topics(ctx)
-	for {
-		topic, err := it.NextConfig()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			t.Errorf("TopicIterator.NextConfig() got err: %v", err)
-		} else {
-			tt = append(tt, topic)
-		}
-	}
-	if got := len(tt); got != numTopics {
-		t.Errorf("c.Topics(ctx) returned %d topics, expected %d", got, numTopics)
-	}
-	for i, top := range tt {
-		want := fmt.Sprintf("t%d", i)
-		if got := top.ID(); got != want {
-			t.Errorf("topic.ID() mismatch: got %s, want: %s", got, want)
-		}
-		want = fmt.Sprintf("projects/P/topics/t%d", i)
-		if got := top.String(); got != want {
-			t.Errorf("topic.String() mismatch: got %s, want: %s", got, want)
-		}
-	}
-}
-
-func TestListCompletelyEmptyTopics(t *testing.T) {
-	c, srv := newFake(t)
-	defer c.Close()
-	defer srv.Close()
-
-	checkTopicListing(t, c, nil)
-}
-
 func TestStopPublishOrder(t *testing.T) {
 	// Check that Stop doesn't panic if called before Publish.
 	// Also that Publish after Stop returns the right error.
 	ctx := context.Background()
 	c := &Client{projectID: "projid"}
-	topic := c.Topic("t")
+	topic := c.Publisher("t")
 	topic.Stop()
 	r := topic.Publish(ctx, &Message{})
 	_, err := r.Get(ctx)
@@ -247,7 +66,7 @@ func TestPublishTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	topic := c.Topic("t")
+	topic := c.Publisher("t")
 	topic.PublishSettings.Timeout = 3 * time.Second
 	r := topic.Publish(ctx, &Message{})
 	defer topic.Stop()
@@ -285,125 +104,6 @@ func TestPublishBufferedByteLimit(t *testing.T) {
 	}
 }
 
-func TestUpdateTopic_Label(t *testing.T) {
-	ctx := context.Background()
-	client, srv := newFake(t)
-	defer client.Close()
-	defer srv.Close()
-
-	topic := mustCreateTopic(t, client, "T")
-	config, err := topic.Config(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := TopicConfig{}
-	opt := cmpopts.IgnoreUnexported(TopicConfig{})
-	if !testutil.Equal(config, want, opt) {
-		t.Errorf("got %+v, want %+v", config, want)
-	}
-
-	// replace labels
-	labels := map[string]string{"label": "value"}
-	config2, err := topic.Update(ctx, TopicConfigToUpdate{
-		Labels: labels,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	want = TopicConfig{
-		Labels: labels,
-	}
-	if !testutil.Equal(config2, want, opt) {
-		t.Errorf("got %+v, want %+v", config2, want)
-	}
-
-	// delete all labels
-	labels = map[string]string{}
-	config3, err := topic.Update(ctx, TopicConfigToUpdate{Labels: labels})
-	if err != nil {
-		t.Fatal(err)
-	}
-	want.Labels = nil
-	if !testutil.Equal(config3, want, opt) {
-		t.Errorf("got %+v, want %+v", config3, want)
-	}
-}
-
-func TestUpdateTopic_MessageStoragePolicy(t *testing.T) {
-	ctx := context.Background()
-	client, srv := newFake(t)
-	defer client.Close()
-	defer srv.Close()
-
-	topic := mustCreateTopic(t, client, "T")
-	config, err := topic.Config(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := TopicConfig{}
-	opt := cmpopts.IgnoreUnexported(TopicConfig{})
-	if !testutil.Equal(config, want, opt) {
-		t.Errorf("\ngot  %+v\nwant %+v", config, want)
-	}
-
-	// Update message storage policy.
-	msp := &MessageStoragePolicy{
-		AllowedPersistenceRegions: []string{"us-east1"},
-	}
-	config2, err := topic.Update(ctx, TopicConfigToUpdate{MessageStoragePolicy: msp})
-	if err != nil {
-		t.Fatal(err)
-	}
-	want.MessageStoragePolicy = MessageStoragePolicy{
-		AllowedPersistenceRegions: []string{"us-east1"},
-	}
-	if !testutil.Equal(config2, want, opt) {
-		t.Errorf("\ngot  %+v\nwant %+v", config2, want)
-	}
-}
-
-func TestUpdateTopic_SchemaSettings(t *testing.T) {
-	ctx := context.Background()
-	client, srv := newFake(t)
-	defer client.Close()
-	defer srv.Close()
-
-	topic := mustCreateTopic(t, client, "T")
-	config, err := topic.Config(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := TopicConfig{}
-	opt := cmpopts.IgnoreUnexported(TopicConfig{})
-	if !testutil.Equal(config, want, opt) {
-		t.Errorf("\ngot  %+v\nwant %+v", config, want)
-	}
-
-	// Update schema settings.
-	settings := &SchemaSettings{
-		Schema:          "some-schema",
-		Encoding:        EncodingJSON,
-		FirstRevisionID: "1234",
-	}
-	config2, err := topic.Update(ctx, TopicConfigToUpdate{SchemaSettings: settings})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !testutil.Equal(config2.SchemaSettings, settings, opt) {
-		t.Errorf("\ngot  %+v\nwant %+v", config2.SchemaSettings, settings)
-	}
-
-	// Clear schema settings.
-	settings = &SchemaSettings{}
-	config3, err := topic.Update(ctx, TopicConfigToUpdate{SchemaSettings: settings})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if config3.SchemaSettings != nil {
-		t.Errorf("got: %+v, want nil", config3.SchemaSettings)
-	}
-}
-
 type alwaysFailPublish struct {
 	pubsubpb.PublisherServer
 }
@@ -412,41 +112,15 @@ func (s *alwaysFailPublish) Publish(ctx context.Context, req *pubsubpb.PublishRe
 	return nil, status.Errorf(codes.Unavailable, "try again")
 }
 
-func mustCreateTopic(t *testing.T, c *Client, id string) *Topic {
-	topic, err := c.CreateTopic(context.Background(), id)
+func mustCreateTopic(t *testing.T, c *Client, id string) *Publisher {
+	pbt := &pb.Topic{
+		Name: fmt.Sprintf("projects/%s/topics/%s", c.projectID, id),
+	}
+	_, err := c.pubc.CreateTopic(context.Background(), pbt)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return topic
-}
-
-func mustCreateTopicWithConfig(t *testing.T, c *Client, id string, tc *TopicConfig) *Topic {
-	if tc == nil {
-		return mustCreateTopic(t, c, id)
-	}
-	topic, err := c.CreateTopicWithConfig(context.Background(), id, tc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return topic
-}
-
-func TestDetachSubscription(t *testing.T) {
-	ctx := context.Background()
-	c, srv := newFake(t)
-	defer c.Close()
-	defer srv.Close()
-
-	topic, err := c.CreateTopic(ctx, "some-topic")
-	if err != nil {
-		t.Fatal(err)
-	}
-	c.CreateSubscription(ctx, "some-sub", SubscriptionConfig{
-		Topic: topic,
-	})
-	if _, err := c.DetachSubscription(ctx, "projects/P/subscriptions/some-sub"); err != nil {
-		t.Errorf("DetachSubscription failed: %v", err)
-	}
+	return c.Publisher(id)
 }
 
 func TestFlushStopTopic(t *testing.T) {
@@ -455,17 +129,14 @@ func TestFlushStopTopic(t *testing.T) {
 	defer c.Close()
 	defer srv.Close()
 
-	topic, err := c.CreateTopic(ctx, "flush-topic")
-	if err != nil {
-		t.Fatal(err)
-	}
+	topic := mustCreateTopic(t, c, "flush-topic")
 
 	// Subsequent publishes after a flush should succeed.
 	topic.Flush()
 	r1 := topic.Publish(ctx, &Message{
 		Data: []byte("hello"),
 	})
-	_, err = r1.Get(ctx)
+	_, err := r1.Get(ctx)
 	if err != nil {
 		t.Errorf("got err: %v", err)
 	}
@@ -529,10 +200,7 @@ func TestPublishFlowControl_SignalError(t *testing.T) {
 	defer c.Close()
 	defer srv.Close()
 
-	topic, err := c.CreateTopic(ctx, "some-topic")
-	if err != nil {
-		t.Fatal(err)
-	}
+	topic := mustCreateTopic(t, c, "some-topic")
 	fc := FlowControlSettings{
 		MaxOutstandingMessages: 1,
 		MaxOutstandingBytes:    10,
@@ -580,7 +248,6 @@ func TestPublishFlowControl_SignalError(t *testing.T) {
 	if want := "2"; got != want {
 		t.Fatalf("publishResult.Get() got: %s, want %s", got, want)
 	}
-
 }
 
 func TestPublishFlowControl_SignalErrorOrderingKey(t *testing.T) {
@@ -589,10 +256,7 @@ func TestPublishFlowControl_SignalErrorOrderingKey(t *testing.T) {
 	defer c.Close()
 	defer srv.Close()
 
-	topic, err := c.CreateTopic(ctx, "some-topic")
-	if err != nil {
-		t.Fatal(err)
-	}
+	topic := mustCreateTopic(t, c, "some-topic")
 	fc := FlowControlSettings{
 		MaxOutstandingMessages: 1,
 		MaxOutstandingBytes:    10,
@@ -622,10 +286,7 @@ func TestPublishFlowControl_Block(t *testing.T) {
 	defer c.Close()
 	defer srv.Close()
 
-	topic, err := c.CreateTopic(ctx, "some-topic")
-	if err != nil {
-		t.Fatal(err)
-	}
+	topic := mustCreateTopic(t, c, "some-topic")
 	fc := FlowControlSettings{
 		MaxOutstandingMessages: 2,
 		MaxOutstandingBytes:    10,
@@ -692,10 +353,8 @@ func TestInvalidUTF8(t *testing.T) {
 	defer c.Close()
 	defer srv.Close()
 
-	topic, err := c.CreateTopic(ctx, "invalid-utf8-topic")
-	if err != nil {
-		t.Fatal(err)
-	}
+	topic := mustCreateTopic(t, c, "invalid-utf8-topic")
+
 	res := topic.Publish(ctx, &Message{
 		Data: []byte("foo"),
 		Attributes: map[string]string{
@@ -704,21 +363,21 @@ func TestInvalidUTF8(t *testing.T) {
 	})
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	_, err = res.Get(ctx)
+	_, err := res.Get(ctx)
 	if err == nil || !strings.Contains(err.Error(), "string field contains invalid UTF-8") {
 		t.Fatalf("expected invalid UTF-8 error, got: %v", err)
 	}
 }
 
 // publishSingleMessage publishes a single message to a topic.
-func publishSingleMessage(ctx context.Context, t *Topic, data string) *PublishResult {
+func publishSingleMessage(ctx context.Context, t *Publisher, data string) *PublishResult {
 	return t.Publish(ctx, &Message{
 		Data: []byte(data),
 	})
 }
 
 // publishSingleMessageWithKey publishes a single message to a topic with an ordering key.
-func publishSingleMessageWithKey(ctx context.Context, t *Topic, data, key string) *PublishResult {
+func publishSingleMessageWithKey(ctx context.Context, t *Publisher, data, key string) *PublishResult {
 	return t.Publish(ctx, &Message{
 		Data:        []byte(data),
 		OrderingKey: key,
@@ -738,10 +397,7 @@ func TestPublishOrderingNotEnabled(t *testing.T) {
 	defer c.Close()
 	defer srv.Close()
 
-	topic, err := c.CreateTopic(ctx, "test-topic")
-	if err != nil {
-		t.Fatal(err)
-	}
+	topic := mustCreateTopic(t, c, "test-topic")
 	res := publishSingleMessageWithKey(ctx, topic, "test", "non-existent-key")
 	if _, err := res.Get(ctx); !errors.Is(err, errTopicOrderingNotEnabled) {
 		t.Errorf("got %v, want errTopicOrderingNotEnabled", err)
