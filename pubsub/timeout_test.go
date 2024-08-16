@@ -52,6 +52,9 @@ func TestStreamTimeout(t *testing.T) {
 	defer client.Close()
 
 	topicAdminClient, err := admingen.NewTopicAdminClient(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, err = topicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{
 		Name: "projects/P/topics/T",

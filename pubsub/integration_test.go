@@ -33,7 +33,6 @@ import (
 	"cloud.google.com/go/internal/uid"
 	"cloud.google.com/go/internal/version"
 	admingen "cloud.google.com/go/pubsub/admingen"
-	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	testutil2 "cloud.google.com/go/pubsub/internal/testutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -161,7 +160,7 @@ func testPublishAndReceive(t *testing.T, client *Client, maxMsgs int, synchronou
 			if err != nil {
 				r.Errorf("CreateTopic error: %v", err)
 			}
-			defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{
+			defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{
 				Topic: topic.String(),
 			})
 			defer topic.Stop()
@@ -312,7 +311,7 @@ func TestIntegration_LargePublishSize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTopic error: %v", err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 
 	// Calculate the largest possible message length that is still valid.
@@ -377,7 +376,7 @@ func TestIntegration_CancelReceive(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create topic: %v", err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 
 	var sub *Subscription
@@ -431,7 +430,7 @@ func TestIntegration_CreateSubscription_NeverExpire(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTopic error: %v", err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 
 	cfg := SubscriptionConfig{
@@ -493,7 +492,7 @@ func TestIntegration_UpdateSubscription(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTopic error: %v", err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 
 	var sub *Subscription
@@ -631,7 +630,7 @@ func TestIntegration_UpdateSubscription_ExpirationPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTopic error: %v", err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 
 	var sub *Subscription
@@ -701,7 +700,7 @@ func TestIntegration_Errors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTopic error: %v", err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 
 	// Out-of-range retention duration.
@@ -761,7 +760,7 @@ func TestIntegration_OrderedKeys_Basic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 	var sub *Subscription
 	if sub, err = createSubWithRetry(ctx, t, client, subIDs.New(), SubscriptionConfig{
@@ -829,7 +828,7 @@ func TestIntegration_OrderedKeys_JSON(t *testing.T) {
 		if err != nil {
 			r.Errorf("createPublisherWithRetry err: %v", err)
 		}
-		defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+		defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 		defer topic.Stop()
 		var sub *Subscription
 		if sub, err = createSubWithRetry(ctx, t, client, subIDs.New(), SubscriptionConfig{
@@ -928,7 +927,7 @@ func TestIntegration_OrderedKeys_ResumePublish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 
 	topic.PublishSettings.BufferedByteLimit = 100
@@ -977,7 +976,7 @@ func TestIntegration_OrderedKeys_SubscriptionOrdering(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 	topic.EnableMessageOrdering = true
 
@@ -1034,7 +1033,7 @@ func TestIntegration_OrderingWithExactlyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 	var sub *Subscription
 	if sub, err = createSubWithRetry(ctx, t, client, subIDs.New(), SubscriptionConfig{
@@ -1106,14 +1105,14 @@ func TestIntegration_CreateSubscription_DeadLetterPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTopic error: %v", err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 
 	deadLetterTopic, err := createPublisherWithRetry(ctx, t, client, topicIDs.New())
 	if err != nil {
 		t.Fatalf("CreateTopic error: %v", err)
 	}
-	defer deadLetterTopic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: deadLetterTopic.String()})
+	defer deadLetterTopic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: deadLetterTopic.String()})
 	defer deadLetterTopic.Stop()
 
 	// We don't set MaxDeliveryAttempts in DeadLetterPolicy so that we can test
@@ -1179,7 +1178,7 @@ func TestIntegration_DeadLetterPolicy_DeliveryAttempt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTopic error: %v", err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 
 	cfg := SubscriptionConfig{
@@ -1221,14 +1220,14 @@ func TestIntegration_DeadLetterPolicy_ClearDeadLetter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTopic error: %v", err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 
 	deadLetterTopic, err := createPublisherWithRetry(ctx, t, client, topicIDs.New())
 	if err != nil {
 		t.Fatalf("CreateTopic error: %v", err)
 	}
-	defer deadLetterTopic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: deadLetterTopic.String()})
+	defer deadLetterTopic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: deadLetterTopic.String()})
 	defer deadLetterTopic.Stop()
 
 	cfg := SubscriptionConfig{
@@ -1284,7 +1283,7 @@ func TestIntegration_Filter_CreateSubscription(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTopic error: %v", err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 	cfg := SubscriptionConfig{
 		Topic:  topic,
@@ -1345,7 +1344,7 @@ func TestIntegration_RetryPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTopic error: %v", err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 
 	cfg := SubscriptionConfig{
@@ -1624,7 +1623,7 @@ func TestIntegration_PublishCompression(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer topic.Admin.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: topic.String()})
+	defer topic.Admin.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topic.String()})
 	defer topic.Stop()
 
 	topic.PublishSettings.EnableCompression = true
@@ -1648,7 +1647,7 @@ func createPublisherWithRetry(ctx context.Context, t *testing.T, c *Client, topi
 		return nil, err
 	}
 	testutil.Retry(t, 5, 1*time.Second, func(r *testutil.R) {
-		_, err = admin.CreateTopic(ctx, &pubsubpb.Topic{
+		_, err = admin.CreateTopic(ctx, &pb.Topic{
 			Name: topicID,
 		})
 		if err != nil {

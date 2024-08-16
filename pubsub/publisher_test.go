@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/internal/testutil"
-	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	"cloud.google.com/go/pubsub/pstest"
 	"google.golang.org/api/option"
@@ -55,7 +54,7 @@ func TestPublishTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pubsubpb.RegisterPublisherServer(serv.Gsrv, &alwaysFailPublish{})
+	pb.RegisterPublisherServer(serv.Gsrv, &alwaysFailPublish{})
 	serv.Start()
 	conn, err := grpc.Dial(serv.Addr, grpc.WithInsecure())
 	if err != nil {
@@ -105,10 +104,10 @@ func TestPublishBufferedByteLimit(t *testing.T) {
 }
 
 type alwaysFailPublish struct {
-	pubsubpb.PublisherServer
+	pb.PublisherServer
 }
 
-func (s *alwaysFailPublish) Publish(ctx context.Context, req *pubsubpb.PublishRequest) (*pubsubpb.PublishResponse, error) {
+func (s *alwaysFailPublish) Publish(ctx context.Context, req *pb.PublishRequest) (*pb.PublishResponse, error) {
 	return nil, status.Errorf(codes.Unavailable, "try again")
 }
 
@@ -169,10 +168,10 @@ func TestFlushStopTopic(t *testing.T) {
 
 	// Wait 5 seconds to simulate network delay.
 	time.Sleep(5 * time.Second)
-	srv.AddPublishResponse(&pubsubpb.PublishResponse{
+	srv.AddPublishResponse(&pb.PublishResponse{
 		MessageIds: []string{"1"},
 	}, nil)
-	srv.AddPublishResponse(&pubsubpb.PublishResponse{
+	srv.AddPublishResponse(&pb.PublishResponse{
 		MessageIds: []string{"2"},
 	}, nil)
 

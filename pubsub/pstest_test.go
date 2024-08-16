@@ -82,13 +82,16 @@ func TestPSTest(t *testing.T) {
 	_, err = topicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{
 		Name: topicName,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, err = subClient.CreateSubscription(ctx, &pubsubpb.Subscription{
 		Name:  subName,
 		Topic: topicName,
 	})
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	sub := client.Subscription("test-sub")
 
