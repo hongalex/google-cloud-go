@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/internal/testutil"
-	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
-	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
-	"cloud.google.com/go/pubsub/pstest"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	"cloud.google.com/go/pubsub/v2/pstest"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -206,7 +206,7 @@ func TestPublishTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pubsubpb.RegisterPublisherServer(serv.Gsrv, &alwaysFailPublish{})
+	pubsubpb.RegisterTopicAdminServer(serv.Gsrv, &alwaysFailPublish{})
 	serv.Start()
 	conn, err := grpc.Dial(serv.Addr, grpc.WithInsecure())
 	if err != nil {
@@ -333,7 +333,7 @@ func TestUpdateTopic_MessageStoragePolicy(t *testing.T) {
 }
 
 type alwaysFailPublish struct {
-	pubsubpb.PublisherServer
+	pubsubpb.TopicAdminServer
 }
 
 func (s *alwaysFailPublish) Publish(ctx context.Context, req *pubsubpb.PublishRequest) (*pubsubpb.PublishResponse, error) {

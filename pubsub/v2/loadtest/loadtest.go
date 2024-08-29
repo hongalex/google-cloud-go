@@ -30,8 +30,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"cloud.google.com/go/pubsub"
-	pb "cloud.google.com/go/pubsub/loadtest/pb"
+	"cloud.google.com/go/pubsub/v2"
+	pb "cloud.google.com/go/pubsub/v2/loadtest/pb"
 	"golang.org/x/time/rate"
 )
 

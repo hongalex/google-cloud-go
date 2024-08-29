@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/internal/testutil"
-	"cloud.google.com/go/pubsub/internal"
-	"cloud.google.com/go/pubsub/pstest"
+	"cloud.google.com/go/pubsub/v2/internal"
+	"cloud.google.com/go/pubsub/v2/pstest"
 	"github.com/google/go-cmp/cmp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
