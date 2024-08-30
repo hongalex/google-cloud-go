@@ -127,7 +127,7 @@ func TestListTopicSubscriptions(t *testing.T) {
 	defer c.Close()
 	defer srv.Close()
 
-	topics := []*Topic{
+	topics := []*Publisher{
 		mustCreateTopic(t, c, "t0"),
 		mustCreateTopic(t, c, "t1"),
 	}
@@ -333,7 +333,7 @@ func testReceive(t *testing.T, synchronous, exactlyOnceDelivery bool) {
 	})
 }
 
-func (t1 *Topic) Equal(t2 *Topic) bool {
+func (t1 *Publisher) Equal(t2 *Publisher) bool {
 	if t1 == nil && t2 == nil {
 		return true
 	}

@@ -604,7 +604,7 @@ func TestIntegration_UpdateSubscription(t *testing.T) {
 
 // publishSync is a utility function for publishing a message and
 // blocking until the message has been confirmed.
-func publishSync(ctx context.Context, t *testing.T, topic *Topic, msg *Message) {
+func publishSync(ctx context.Context, t *testing.T, topic *Publisher, msg *Message) {
 	res := topic.Publish(ctx, msg)
 	_, err := res.Get(ctx)
 	if err != nil {
@@ -1843,8 +1843,8 @@ func TestIntegration_PublishCompression(t *testing.T) {
 }
 
 // createTopicWithRetry creates a topic, wrapped with testutil.Retry and returns the created topic or an error.
-func createTopicWithRetry(ctx context.Context, t *testing.T, c *Client, topicID string, cfg *TopicConfig) (*Topic, error) {
-	var topic *Topic
+func createTopicWithRetry(ctx context.Context, t *testing.T, c *Client, topicID string, cfg *TopicConfig) (*Publisher, error) {
+	var topic *Publisher
 	var err error
 	testutil.Retry(t, 5, 1*time.Second, func(r *testutil.R) {
 		if cfg != nil {

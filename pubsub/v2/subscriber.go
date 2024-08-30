@@ -487,7 +487,7 @@ type SubscriptionConfig struct {
 	name string
 
 	// The topic from which this subscription is receiving messages.
-	Topic *Topic
+	Topic *Publisher
 
 	// If push delivery is used with this subscription, this field is
 	// used to configure it. At most one of `PushConfig`, `BigQueryConfig`,

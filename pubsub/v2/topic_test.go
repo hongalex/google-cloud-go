@@ -52,8 +52,8 @@ func checkTopicListing(t *testing.T, c *Client, want []string) {
 }
 
 // All returns the remaining topics from this iterator.
-func slurpTopics(it *TopicIterator) ([]*Topic, error) {
-	var topics []*Topic
+func slurpTopics(it *TopicIterator) ([]*Publisher, error) {
+	var topics []*Publisher
 	for {
 		switch topic, err := it.Next(); err {
 		case nil:
@@ -340,7 +340,7 @@ func (s *alwaysFailPublish) Publish(ctx context.Context, req *pubsubpb.PublishRe
 	return nil, status.Errorf(codes.Unavailable, "try again")
 }
 
-func mustCreateTopic(t *testing.T, c *Client, id string) *Topic {
+func mustCreateTopic(t *testing.T, c *Client, id string) *Publisher {
 	topic, err := c.CreateTopic(context.Background(), id)
 	if err != nil {
 		t.Fatal(err)
@@ -348,7 +348,7 @@ func mustCreateTopic(t *testing.T, c *Client, id string) *Topic {
 	return topic
 }
 
-func mustCreateTopicWithConfig(t *testing.T, c *Client, id string, tc *TopicConfig) *Topic {
+func mustCreateTopicWithConfig(t *testing.T, c *Client, id string, tc *TopicConfig) *Publisher {
 	if tc == nil {
 		return mustCreateTopic(t, c, id)
 	}
@@ -639,14 +639,14 @@ func TestInvalidUTF8(t *testing.T) {
 }
 
 // publishSingleMessage publishes a single message to a topic.
-func publishSingleMessage(ctx context.Context, t *Topic, data string) *PublishResult {
+func publishSingleMessage(ctx context.Context, t *Publisher, data string) *PublishResult {
 	return t.Publish(ctx, &Message{
 		Data: []byte(data),
 	})
 }
 
 // publishSingleMessageWithKey publishes a single message to a topic with an ordering key.
-func publishSingleMessageWithKey(ctx context.Context, t *Topic, data, key string) *PublishResult {
+func publishSingleMessageWithKey(ctx context.Context, t *Publisher, data, key string) *PublishResult {
 	return t.Publish(ctx, &Message{
 		Data:        []byte(data),
 		OrderingKey: key,

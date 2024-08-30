@@ -36,7 +36,7 @@ import (
 )
 
 type pubServerConfig struct {
-	topic     *pubsub.Topic
+	topic     *pubsub.Publisher
 	msgData   []byte
 	batchSize int32
 	ordered   bool
