@@ -27,9 +27,9 @@ import (
 	"cloud.google.com/go/iam"
 	"cloud.google.com/go/internal/optional"
 	ipubsub "cloud.google.com/go/internal/pubsub"
-	"cloud.google.com/go/pubsub/internal/scheduler"
 	vkit "cloud.google.com/go/pubsub/v2/apiv1"
 	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	"cloud.google.com/go/pubsub/v2/internal/scheduler"
 	gax "github.com/googleapis/gax-go/v2"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
@@ -170,7 +170,7 @@ var DefaultPublishSettings = PublishSettings{
 //
 // If the topic already exists an error will be returned.
 func (c *Client) CreateTopic(ctx context.Context, topicID string) (*Publisher, error) {
-	t := c.Topic(topicID)
+	t := c.Publisher(topicID)
 	_, err := c.pubc.CreateTopic(ctx, &pb.Topic{Name: t.name})
 	if err != nil {
 		return nil, err
@@ -188,7 +188,7 @@ func (c *Client) CreateTopic(ctx context.Context, topicID string) (*Publisher, e
 //
 // If the topic already exists, an error will be returned.
 func (c *Client) CreateTopicWithConfig(ctx context.Context, topicID string, tc *TopicConfig) (*Publisher, error) {
-	t := c.Topic(topicID)
+	t := c.Publisher(topicID)
 	topic := tc.toProto()
 	topic.Name = t.name
 	_, err := c.pubc.CreateTopic(ctx, topic)
@@ -196,26 +196,6 @@ func (c *Client) CreateTopicWithConfig(ctx context.Context, topicID string, tc *
 		return nil, err
 	}
 	return t, nil
-}
-
-// Topic creates a reference to a topic in the client's project.
-//
-// If a Topic's Publish method is called, it has background goroutines
-// associated with it. Clean them up by calling Topic.Stop.
-//
-// Avoid creating many Topic instances if you use them to publish.
-func (c *Client) Topic(id string) *Publisher {
-	return c.TopicInProject(id, c.projectID)
-}
-
-// TopicInProject creates a reference to a topic in the given project.
-//
-// If a Topic's Publish method is called, it has background goroutines
-// associated with it. Clean them up by calling Topic.Stop.
-//
-// Avoid creating many Topic instances if you use them to publish.
-func (c *Client) TopicInProject(id, projectID string) *Publisher {
-	return newTopic(c, fmt.Sprintf("projects/%s/topics/%s", projectID, id))
 }
 
 // Publisher constructs a publisher client from either a topicID or a topic name, otherwise known as a full path.
@@ -233,7 +213,7 @@ func (c *Client) Publisher(topicNameOrID string) *Publisher {
 		return newTopic(c, topicNameOrID)
 	}
 	// In all other cases, treat the string as the topicID, even if misformatted.
-	return c.TopicInProject(topicNameOrID, c.projectID)
+	return newTopic(c, fmt.Sprintf("projects/%s/topics:%s", c.projectID, topicNameOrID))
 }
 
 func newTopic(c *Client, name string) *Publisher {

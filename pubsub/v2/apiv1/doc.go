@@ -70,7 +70,7 @@
 //
 //	req := &pubsubpb.CommitSchemaRequest{
 //		// TODO: Fill request struct fields.
-//		// See https://pkg.go.dev/cloud.google.com/go/pubsub/apiv1/pubsubpb#CommitSchemaRequest.
+//		// See https://pkg.go.dev/cloud.google.com/go/pubsub/v2/apiv1/pubsubpb#CommitSchemaRequest.
 //	}
 //	resp, err := c.CommitSchema(ctx, req)
 //	if err != nil {
@@ -92,7 +92,7 @@
 // [Testing against Client Libraries]: https://pkg.go.dev/cloud.google.com/go#hdr-Testing
 // [Debugging Client Libraries]: https://pkg.go.dev/cloud.google.com/go#hdr-Debugging
 // [Inspecting errors]: https://pkg.go.dev/cloud.google.com/go#hdr-Inspecting_errors
-package pubsub // import "cloud.google.com/go/pubsub/apiv1"
+package pubsub // import "cloud.google.com/go/pubsub/v2/apiv1"
 
 import (
 	"context"

@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/internal/testutil"
-	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"cloud.google.com/go/pubsub/v2/pstest"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -72,7 +71,7 @@ func TestTopicID(t *testing.T) {
 	defer c.Close()
 	defer srv.Close()
 
-	s := c.Topic(id)
+	s := c.Publisher(id)
 	if got, want := s.ID(), id; got != want {
 		t.Errorf("Topic.ID() = %q; want %q", got, want)
 	}
@@ -191,7 +190,7 @@ func TestStopPublishOrder(t *testing.T) {
 	// Also that Publish after Stop returns the right error.
 	ctx := context.Background()
 	c := &Client{projectID: "projid"}
-	topic := c.Topic("t")
+	topic := c.Publisher("t")
 	topic.Stop()
 	r := topic.Publish(ctx, &Message{})
 	_, err := r.Get(ctx)
@@ -206,7 +205,7 @@ func TestPublishTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pubsubpb.RegisterTopicAdminServer(serv.Gsrv, &alwaysFailPublish{})
+	pb.RegisterTopicAdminServer(serv.Gsrv, &alwaysFailPublish{})
 	serv.Start()
 	conn, err := grpc.Dial(serv.Addr, grpc.WithInsecure())
 	if err != nil {
@@ -217,7 +216,7 @@ func TestPublishTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	topic := c.Topic("t")
+	topic := c.Publisher("t")
 	topic.PublishSettings.Timeout = 3 * time.Second
 	r := topic.Publish(ctx, &Message{})
 	defer topic.Stop()
@@ -333,10 +332,10 @@ func TestUpdateTopic_MessageStoragePolicy(t *testing.T) {
 }
 
 type alwaysFailPublish struct {
-	pubsubpb.TopicAdminServer
+	pb.TopicAdminServer
 }
 
-func (s *alwaysFailPublish) Publish(ctx context.Context, req *pubsubpb.PublishRequest) (*pubsubpb.PublishResponse, error) {
+func (s *alwaysFailPublish) Publish(ctx context.Context, req *pb.PublishRequest) (*pb.PublishResponse, error) {
 	return nil, status.Errorf(codes.Unavailable, "try again")
 }
 
@@ -426,10 +425,10 @@ func TestFlushStopTopic(t *testing.T) {
 
 	// Wait 5 seconds to simulate network delay.
 	time.Sleep(5 * time.Second)
-	srv.AddPublishResponse(&pubsubpb.PublishResponse{
+	srv.AddPublishResponse(&pb.PublishResponse{
 		MessageIds: []string{"1"},
 	}, nil)
-	srv.AddPublishResponse(&pubsubpb.PublishResponse{
+	srv.AddPublishResponse(&pb.PublishResponse{
 		MessageIds: []string{"2"},
 	}, nil)
 

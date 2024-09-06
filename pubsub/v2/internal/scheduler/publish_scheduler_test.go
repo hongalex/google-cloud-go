@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/pubsub/internal/scheduler"
+	"cloud.google.com/go/pubsub/v2/internal/scheduler"
 )
 
 func TestPublishScheduler_Put_Basic(t *testing.T) {

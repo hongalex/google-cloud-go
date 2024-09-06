@@ -20,7 +20,7 @@ import (
 	"log"
 	"sync"
 
-	"cloud.google.com/go/pubsub/internal"
+	"cloud.google.com/go/pubsub/v2/internal"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"

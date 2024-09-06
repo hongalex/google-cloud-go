@@ -33,6 +33,7 @@ import (
 	"cloud.google.com/go/internal/version"
 	kms "cloud.google.com/go/kms/apiv1"
 	"cloud.google.com/go/kms/apiv1/kmspb"
+	vkit "cloud.google.com/go/pubsub/v2/apiv1"
 	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	testutil2 "cloud.google.com/go/pubsub/v2/internal/testutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -729,16 +730,23 @@ func TestIntegration_UpdateTopicLabels(t *testing.T) {
 func TestIntegration_PublicTopic(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	client := integrationTestClient(ctx, t)
+	client, err := vkit.NewSubscriptionAdminClient(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer client.Close()
 
-	sub, err := createSubWithRetry(ctx, t, client, subIDs.New(), SubscriptionConfig{
-		Topic: client.TopicInProject("taxirides-realtime", "pubsub-public-data"),
+	subID := subIDs.New()
+	sub, err := createAdminSubWithRetry(ctx, t, client, &pb.Subscription{
+		Name:  subID,
+		Topic: fmt.Sprintf("projects/%s/topics/%s", "taxirides-realtime", "pubsub-public-data"),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	sub.Delete(ctx)
+	client.DeleteSubscription(ctx, &pb.DeleteSubscriptionRequest{
+		Subscription: sub.GetName(),
+	})
 }
 
 func TestIntegration_Errors(t *testing.T) {
@@ -1873,4 +1881,17 @@ func createSubWithRetry(ctx context.Context, t *testing.T, c *Client, subID stri
 		}
 	})
 	return sub, err
+}
+
+// createAdminSubWithRetry creates a subscription, wrapped with testutil.Retry and returns the created subscription or an error.
+func createAdminSubWithRetry(ctx context.Context, t *testing.T, c *vkit.SubscriptionAdminClient, sub *pb.Subscription) (*pb.Subscription, error) {
+	var err error
+	var s *pb.Subscription
+	testutil.Retry(t, 5, 1*time.Second, func(r *testutil.R) {
+		sub, err = c.CreateSubscription(ctx, sub)
+		if err != nil {
+			r.Errorf("CreateSubcription error: %v", err)
+		}
+	})
+	return s, err
 }

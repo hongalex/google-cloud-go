@@ -35,7 +35,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/durationpb"
 	durpb "google.golang.org/protobuf/types/known/durationpb"
 	fmpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 
@@ -437,9 +436,9 @@ func (cs *CloudStorageConfig) toProto() *pb.CloudStorageConfig {
 	if (CloudStorageConfig{}) == *cs {
 		return nil
 	}
-	var dur *durationpb.Duration
+	var dur *durpb.Duration
 	if cs.MaxDuration != nil {
-		dur = durationpb.New(optional.ToDuration(cs.MaxDuration))
+		dur = durpb.New(optional.ToDuration(cs.MaxDuration))
 	}
 	pbCfg := &pb.CloudStorageConfig{
 		Bucket:         cs.Bucket,

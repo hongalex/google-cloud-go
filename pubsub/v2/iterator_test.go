@@ -341,7 +341,7 @@ func initConn(ctx context.Context, addr string) (*Subscription, *Client, error) 
 		return nil, nil, err
 	}
 
-	topic := client.Topic(topicName)
+	topic := client.Publisher(topicName)
 	s, err := client.CreateSubscription(ctx, fmt.Sprintf("sub-%d", time.Now().UnixNano()), SubscriptionConfig{Topic: topic})
 	if err != nil {
 		return nil, nil, err
@@ -514,7 +514,7 @@ func TestIterator_StreamingPullExactlyOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	topic := client.Topic(topicName)
+	topic := client.Publisher(topicName)
 	sc := SubscriptionConfig{
 		Topic:                     topic,
 		EnableMessageOrdering:     true,
@@ -585,7 +585,7 @@ func TestPingStreamAckDeadline(t *testing.T) {
 	defer cancel()
 
 	srv.Publish(fullyQualifiedTopicName, []byte("creating a topic"), nil)
-	topic := c.Topic(topicName)
+	topic := c.Publisher(topicName)
 	s, err := c.CreateSubscription(ctx, subName, SubscriptionConfig{Topic: topic})
 	if err != nil {
 		t.Errorf("failed to create subscription: %v", err)
