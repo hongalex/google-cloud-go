@@ -23,14 +23,14 @@ import (
 	"time"
 
 	"cloud.google.com/go/internal/testutil"
-	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
+	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type mockServer struct {
 	srv *testutil.Server
 
-	pb.SubscriberServer
+	pb.SubscriptionAdminServer
 
 	Addr string
 
@@ -64,7 +64,7 @@ func newMockServer(port int) (*mockServer, error) {
 			PushConfig:         &pb.PushConfig{},
 		},
 	}
-	pb.RegisterSubscriberServer(srv.Gsrv, mock)
+	pb.RegisterSubscriptionAdminServer(srv.Gsrv, mock)
 	srv.Start()
 	return mock, nil
 }
@@ -98,7 +98,7 @@ func (s *mockServer) wait() {
 	s.wg.Wait()
 }
 
-func (s *mockServer) StreamingPull(stream pb.Subscriber_StreamingPullServer) error {
+func (s *mockServer) StreamingPull(stream pb.SubscriptionAdmin_StreamingPullServer) error {
 	s.wg.Add(1)
 	defer s.wg.Done()
 	errc := make(chan error, 1)

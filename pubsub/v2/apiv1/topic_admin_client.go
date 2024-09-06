@@ -41,7 +41,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var newPublisherClientHook clientHook
+var newTopicAdminClientHook clientHook
 
 // TopicAdminCallOptions contains the retry settings for each method of TopicAdminClient.
 type TopicAdminCallOptions struct {
@@ -490,8 +490,8 @@ type publisherGRPCClient struct {
 // messages to a topic.
 func NewTopicAdminClient(ctx context.Context, opts ...option.ClientOption) (*TopicAdminClient, error) {
 	clientOpts := defaultTopicAdminGRPCClientOptions()
-	if newPublisherClientHook!= nil {
-		hookOpts, err := newPublisherClientHook(ctx, clientHookParams{})
+	if newTopicAdminClientHook!= nil {
+		hookOpts, err := newTopicAdminClientHook(ctx, clientHookParams{})
 		if err != nil {
 			return nil, err
 		}

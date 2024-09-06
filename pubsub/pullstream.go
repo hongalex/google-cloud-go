@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
+	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/grpc"
 )
@@ -31,16 +31,16 @@ import (
 // the stream on a retryable error.
 type pullStream struct {
 	ctx    context.Context
-	open   func() (pb.Subscriber_StreamingPullClient, error)
+	open   func() (pb.SubscriptionAdmin_StreamingPullClient, error)
 	cancel context.CancelFunc
 
 	mu  sync.Mutex
-	spc *pb.Subscriber_StreamingPullClient
+	spc *pb.SubscriptionAdmin_StreamingPullClient
 	err error // permanent error
 }
 
 // for testing
-type streamingPullFunc func(context.Context, ...gax.CallOption) (pb.Subscriber_StreamingPullClient, error)
+type streamingPullFunc func(context.Context, ...gax.CallOption) (pb.SubscriptionAdmin_StreamingPullClient, error)
 
 func newPullStream(ctx context.Context, streamingPull streamingPullFunc, subName, clientID string, maxOutstandingMessages, maxOutstandingBytes int, maxDurationPerLeaseExtension time.Duration) *pullStream {
 	ctx = withSubscriptionKey(ctx, subName)
@@ -50,7 +50,7 @@ func newPullStream(ctx context.Context, streamingPull streamingPullFunc, subName
 	return &pullStream{
 		ctx:    ctx,
 		cancel: cancel,
-		open: func() (pb.Subscriber_StreamingPullClient, error) {
+		open: func() (pb.SubscriptionAdmin_StreamingPullClient, error) {
 			spc, err := streamingPull(ctx, gax.WithGRPCOptions(grpc.MaxCallRecvMsgSize(maxSendRecvBytes)))
 			if err == nil {
 				recordStat(ctx, StreamRequestCount, 1)
@@ -81,7 +81,7 @@ func newPullStream(ctx context.Context, streamingPull streamingPullFunc, subName
 // SPC will be returned (or a new one will be opened). Otherwise, this call is a
 // request to re-open the stream because of a retryable error, and the argument
 // is a pointer to the SPC that returned the error.
-func (s *pullStream) get(spc *pb.Subscriber_StreamingPullClient) (*pb.Subscriber_StreamingPullClient, error) {
+func (s *pullStream) get(spc *pb.SubscriptionAdmin_StreamingPullClient) (*pb.SubscriptionAdmin_StreamingPullClient, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	// A stored error is permanent.
@@ -104,12 +104,12 @@ func (s *pullStream) get(spc *pb.Subscriber_StreamingPullClient) (*pb.Subscriber
 	// retry request. Either way, open a new stream.
 	// The lock is held here for a long time, but it doesn't matter because no callers could get
 	// anything done anyway.
-	s.spc = new(pb.Subscriber_StreamingPullClient)
+	s.spc = new(pb.SubscriptionAdmin_StreamingPullClient)
 	*s.spc, s.err = s.openWithRetry() // Any error from openWithRetry is permanent.
 	return s.spc, s.err
 }
 
-func (s *pullStream) openWithRetry() (pb.Subscriber_StreamingPullClient, error) {
+func (s *pullStream) openWithRetry() (pb.SubscriptionAdmin_StreamingPullClient, error) {
 	r := defaultRetryer{}
 	for {
 		recordStat(s.ctx, StreamOpenCount, 1)
@@ -126,7 +126,7 @@ func (s *pullStream) openWithRetry() (pb.Subscriber_StreamingPullClient, error) 
 	}
 }
 
-func (s *pullStream) call(f func(pb.Subscriber_StreamingPullClient) error, opts ...gax.CallOption) error {
+func (s *pullStream) call(f func(pb.SubscriptionAdmin_StreamingPullClient) error, opts ...gax.CallOption) error {
 	var settings gax.CallSettings
 	for _, opt := range opts {
 		opt.Resolve(&settings)
@@ -137,7 +137,7 @@ func (s *pullStream) call(f func(pb.Subscriber_StreamingPullClient) error, opts 
 	}
 
 	var (
-		spc *pb.Subscriber_StreamingPullClient
+		spc *pb.SubscriptionAdmin_StreamingPullClient
 		err error
 	)
 	for {
@@ -167,7 +167,7 @@ func (s *pullStream) call(f func(pb.Subscriber_StreamingPullClient) error, opts 
 }
 
 func (s *pullStream) Send(req *pb.StreamingPullRequest) error {
-	return s.call(func(spc pb.Subscriber_StreamingPullClient) error {
+	return s.call(func(spc pb.SubscriptionAdmin_StreamingPullClient) error {
 		recordStat(s.ctx, AckCount, int64(len(req.AckIds)))
 		zeroes := 0
 		for _, mds := range req.ModifyDeadlineSeconds {
@@ -184,7 +184,7 @@ func (s *pullStream) Send(req *pb.StreamingPullRequest) error {
 
 func (s *pullStream) Recv() (*pb.StreamingPullResponse, error) {
 	var res *pb.StreamingPullResponse
-	err := s.call(func(spc pb.Subscriber_StreamingPullClient) error {
+	err := s.call(func(spc pb.SubscriptionAdmin_StreamingPullClient) error {
 		var err error
 		recordStat(s.ctx, StreamResponseCount, 1)
 		res, err = spc.Recv()
@@ -194,7 +194,7 @@ func (s *pullStream) Recv() (*pb.StreamingPullResponse, error) {
 }
 
 func (s *pullStream) CloseSend() error {
-	err := s.call(func(spc pb.Subscriber_StreamingPullClient) error {
+	err := s.call(func(spc pb.SubscriptionAdmin_StreamingPullClient) error {
 		return spc.CloseSend()
 	})
 	s.mu.Lock()

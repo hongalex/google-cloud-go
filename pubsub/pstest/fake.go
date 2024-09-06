@@ -35,7 +35,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/internal/testutil"
-	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
+	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"go.einride.tech/aip/filtering"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -79,8 +79,8 @@ type Server struct {
 // GServer is the underlying service implementor. It is not intended to be used
 // directly.
 type GServer struct {
-	pb.UnimplementedPublisherServer
-	pb.UnimplementedSubscriberServer
+	pb.UnimplementedTopicAdminServer
+	pb.UnimplementedSubscriptionAdminServer
 	pb.UnimplementedSchemaServiceServer
 
 	timeNowFunc atomic.Value
@@ -142,8 +142,8 @@ func NewServerWithCallback(port int, callback func(*grpc.Server), opts ...Server
 		},
 	}
 	s.GServer.timeNowFunc.Store(time.Now)
-	pb.RegisterPublisherServer(srv.Gsrv, &s.GServer)
-	pb.RegisterSubscriberServer(srv.Gsrv, &s.GServer)
+	pb.RegisterTopicAdminServer(srv.Gsrv, &s.GServer)
+	pb.RegisterSubscriptionAdminServer(srv.Gsrv, &s.GServer)
 	pb.RegisterSchemaServiceServer(srv.Gsrv, &s.GServer)
 
 	callback(srv.Gsrv)
@@ -1018,7 +1018,7 @@ func (s *GServer) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullRespon
 	return &pb.PullResponse{ReceivedMessages: msgs}, nil
 }
 
-func (s *GServer) StreamingPull(sps pb.Subscriber_StreamingPullServer) error {
+func (s *GServer) StreamingPull(sps pb.SubscriptionAdmin_StreamingPullServer) error {
 	// Receive initial message configuring the pull.
 	req, err := sps.Recv()
 	if err != nil {
@@ -1264,7 +1264,7 @@ func (s *subscription) maintainMessages(now time.Time) {
 	}
 }
 
-func (s *subscription) newStream(gs pb.Subscriber_StreamingPullServer, timeout time.Duration) *stream {
+func (s *subscription) newStream(gs pb.SubscriptionAdmin_StreamingPullServer, timeout time.Duration) *stream {
 	st := &stream{
 		sub:                       s,
 		done:                      make(chan struct{}),
@@ -1353,7 +1353,7 @@ type stream struct {
 	sub                       *subscription
 	done                      chan struct{} // closed when the stream is finished
 	msgc                      chan *pb.ReceivedMessage
-	gstream                   pb.Subscriber_StreamingPullServer
+	gstream                   pb.SubscriptionAdmin_StreamingPullServer
 	ackTimeout                time.Duration
 	timeout                   time.Duration
 	enableExactlyOnceDelivery bool

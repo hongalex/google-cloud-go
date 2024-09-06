@@ -74,6 +74,16 @@ func (c *Client) SubscriptionInProject(id, projectID string) *Subscription {
 	return newSubscription(c, fmt.Sprintf("projects/%s/subscriptions/%s", projectID, id))
 }
 
+func (c *Client) Subscriber(nameOrID string) *Subscription {
+	s := strings.Split(nameOrID, "/")
+	// The string looks like a properly formatted topic name, use it directly.
+	if len(s) == 4 {
+		return newSubscription(c, nameOrID)
+	}
+	// In all other cases, treat the arg as the topicID, even if misformatted.
+	return newSubscription(c, fmt.Sprintf("projects/%s/topics:%s", c.projectID, nameOrID))
+}
+
 func newSubscription(c *Client, name string) *Subscription {
 	return &Subscription{
 		c:               c,
@@ -101,7 +111,7 @@ func (s *Subscription) ID() string {
 
 // Subscriptions returns an iterator which returns all of the subscriptions for the client's project.
 func (c *Client) Subscriptions(ctx context.Context) *SubscriptionIterator {
-	it := c.subc.ListSubscriptions(ctx, &pb.ListSubscriptionsRequest{
+	it := c.SubscriptionAdminClient.ListSubscriptions(ctx, &pb.ListSubscriptionsRequest{
 		Project: c.fullyQualifiedProjectName(),
 	})
 	return &SubscriptionIterator{
@@ -983,12 +993,12 @@ var DefaultReceiveSettings = ReceiveSettings{
 
 // Delete deletes the subscription.
 func (s *Subscription) Delete(ctx context.Context) error {
-	return s.c.subc.DeleteSubscription(ctx, &pb.DeleteSubscriptionRequest{Subscription: s.name})
+	return s.c.SubscriptionAdminClient.DeleteSubscription(ctx, &pb.DeleteSubscriptionRequest{Subscription: s.name})
 }
 
 // Exists reports whether the subscription exists on the server.
 func (s *Subscription) Exists(ctx context.Context) (bool, error) {
-	_, err := s.c.subc.GetSubscription(ctx, &pb.GetSubscriptionRequest{Subscription: s.name})
+	_, err := s.c.SubscriptionAdminClient.GetSubscription(ctx, &pb.GetSubscriptionRequest{Subscription: s.name})
 	if err == nil {
 		return true, nil
 	}
@@ -1000,7 +1010,7 @@ func (s *Subscription) Exists(ctx context.Context) (bool, error) {
 
 // Config fetches the current configuration for the subscription.
 func (s *Subscription) Config(ctx context.Context) (SubscriptionConfig, error) {
-	pbSub, err := s.c.subc.GetSubscription(ctx, &pb.GetSubscriptionRequest{Subscription: s.name})
+	pbSub, err := s.c.SubscriptionAdminClient.GetSubscription(ctx, &pb.GetSubscriptionRequest{Subscription: s.name})
 	if err != nil {
 		return SubscriptionConfig{}, err
 	}
@@ -1071,7 +1081,7 @@ func (s *Subscription) Update(ctx context.Context, cfg SubscriptionConfigToUpdat
 	if len(req.UpdateMask.Paths) == 0 {
 		return SubscriptionConfig{}, errors.New("pubsub: UpdateSubscription call with nothing to update")
 	}
-	rpsub, err := s.c.subc.UpdateSubscription(ctx, req)
+	rpsub, err := s.c.SubscriptionAdminClient.UpdateSubscription(ctx, req)
 	if err != nil {
 		return SubscriptionConfig{}, err
 	}
@@ -1135,10 +1145,6 @@ const (
 	// The minimum expiration policy duration is 1 day as per:
 	//    https://github.com/googleapis/googleapis/blob/51145ff7812d2bb44c1219d0b76dac92a8bd94b2/google/pubsub/v1/pubsub.proto#L606-L607
 	minExpirationPolicy = 24 * time.Hour
-
-	// If an expiration policy is not specified, the default of 31 days is used as per:
-	//    https://github.com/googleapis/googleapis/blob/51145ff7812d2bb44c1219d0b76dac92a8bd94b2/google/pubsub/v1/pubsub.proto#L605-L606
-	defaultExpirationPolicy = 31 * 24 * time.Hour
 )
 
 func (cfg *SubscriptionConfigToUpdate) validate() error {
@@ -1172,7 +1178,7 @@ func expirationPolicyToProto(expirationPolicy optional.Duration) *pb.ExpirationP
 
 // IAM returns the subscription's IAM handle.
 func (s *Subscription) IAM() *iam.Handle {
-	return iam.InternalNewHandle(s.c.subc.Connection(), s.name)
+	return iam.InternalNewHandle(s.c.SubscriptionAdminClient.Connection(), s.name)
 }
 
 // CreateSubscription creates a new subscription on a topic.
@@ -1209,7 +1215,7 @@ func (c *Client) CreateSubscription(ctx context.Context, id string, cfg Subscrip
 	}
 
 	sub := c.Subscription(id)
-	_, err := c.subc.CreateSubscription(ctx, cfg.toProto(sub.name))
+	_, err := c.SubscriptionAdminClient.CreateSubscription(ctx, cfg.toProto(sub.name))
 	if err != nil {
 		return nil, err
 	}
@@ -1330,7 +1336,7 @@ func (s *Subscription) Receive(ctx context.Context, f func(context.Context, *Mes
 		// The iterator does not use the context passed to Receive. If it did,
 		// canceling that context would immediately stop the iterator without
 		// waiting for unacked messages.
-		iter := newMessageIterator(s.c.subc, s.name, po)
+		iter := newMessageIterator(s.c.SubscriptionAdminClient, s.name, po)
 		iter.enableTracing = s.enableTracing
 
 		// We cannot use errgroup from Receive here. Receive might already be

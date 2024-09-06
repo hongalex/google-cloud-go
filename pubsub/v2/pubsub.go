@@ -49,10 +49,10 @@ const (
 // Clients should be reused rather than being created as needed.
 // A Client may be shared by multiple goroutines.
 type Client struct {
-	projectID     string
-	pubc          *vkit.TopicAdminClient
-	subc          *vkit.SubscriptionAdminClient
-	enableTracing bool
+	projectID               string
+	TopicAdminClient        *vkit.TopicAdminClient
+	SubscriptionAdminClient *vkit.SubscriptionAdminClient
+	enableTracing           bool
 }
 
 // ClientConfig has configurations for the client.
@@ -175,20 +175,20 @@ func NewClientWithConfig(ctx context.Context, projectID string, config *ClientCo
 		}
 	}
 	o = append(o, opts...)
-	pubc, err := vkit.NewTopicAdminClient(ctx, o...)
+	topicClient, err := vkit.NewTopicAdminClient(ctx, o...)
 	if err != nil {
 		return nil, fmt.Errorf("pubsub(publisher): %w", err)
 	}
-	subc, err := vkit.NewSubscriptionAdminClient(ctx, o...)
+	subClient, err := vkit.NewSubscriptionAdminClient(ctx, o...)
 	if err != nil {
 		return nil, fmt.Errorf("pubsub(subscriber): %w", err)
 	}
 	if config != nil {
-		pubc.CallOptions = mergeTopicAdminCallOptions(pubc.CallOptions, config.TopicAdminCallOptions)
-		subc.CallOptions = mergeSubscriptionAdminCallOptions(subc.CallOptions, config.SubscriptionAdminCallOptions)
+		topicClient.CallOptions = mergeTopicAdminCallOptions(topicClient.CallOptions, config.TopicAdminCallOptions)
+		subClient.CallOptions = mergeSubscriptionAdminCallOptions(subClient.CallOptions, config.SubscriptionAdminCallOptions)
 	}
-	pubc.SetGoogleClientInfo("gccl", internal.Version)
-	subc.SetGoogleClientInfo("gccl", internal.Version)
+	topicClient.SetGoogleClientInfo("gccl", internal.Version)
+	subClient.SetGoogleClientInfo("gccl", internal.Version)
 
 	// Handle project autodetection.
 	projectID, err = detect.ProjectID(ctx, projectID, "", opts...)
@@ -197,9 +197,9 @@ func NewClientWithConfig(ctx context.Context, projectID string, config *ClientCo
 	}
 
 	c := &Client{
-		projectID: projectID,
-		pubc:      pubc,
-		subc:      subc,
+		projectID:               projectID,
+		TopicAdminClient:        topicClient,
+		SubscriptionAdminClient: subClient,
 	}
 	if config != nil {
 		c.enableTracing = config.EnableOpenTelemetryTracing
@@ -219,8 +219,8 @@ func (c *Client) Project() string {
 // If the client is available for the lifetime of the program, then Close need not be
 // called at exit.
 func (c *Client) Close() error {
-	pubErr := c.pubc.Close()
-	subErr := c.subc.Close()
+	pubErr := c.TopicAdminClient.Close()
+	subErr := c.SubscriptionAdminClient.Close()
 	if pubErr != nil {
 		return fmt.Errorf("pubsub publisher closing error: %w", pubErr)
 	}

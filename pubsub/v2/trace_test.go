@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/internal/testutil"
+	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"cloud.google.com/go/pubsub/v2/internal"
 	"cloud.google.com/go/pubsub/v2/pstest"
 	"github.com/google/go-cmp/cmp"
@@ -165,19 +166,16 @@ func TestTrace_PublishSpan(t *testing.T) {
 		},
 	}
 
-	topic, err := c.CreateTopic(ctx, topicID)
-	if err != nil {
-		t.Fatalf("failed to create topic: %v", err)
-	}
+	publisher := mustCreateTopic(t, c, topicID)
+	defer publisher.Stop()
 	if m.OrderingKey != "" {
-		topic.EnableMessageOrdering = true
+		publisher.EnableMessageOrdering = true
 	}
-	r := topic.Publish(ctx, m)
-	_, err = r.Get(ctx)
+	r := publisher.Publish(ctx, m)
+	_, err := r.Get(ctx)
 	if err != nil {
 		t.Fatalf("failed to publish message: %v", err)
 	}
-	defer topic.Stop()
 
 	got := getSpans(e)
 	slices.SortFunc(expectedSpans, func(a, b tracetest.SpanStub) int {
@@ -204,16 +202,13 @@ func TestTrace_PublishSpanError(t *testing.T) {
 
 	topicID := "t"
 
-	topic, err := c.CreateTopic(ctx, topicID)
-	if err != nil {
-		t.Fatalf("failed to create topic: %v", err)
-	}
+	publisher := mustCreateTopic(t, c, topicID)
 
 	// Publishing a message with an ordering key without enabling ordering topic ordering
 	// should fail.
 	t.Run("no ordering key", func(t *testing.T) {
-		r := topic.Publish(ctx, m)
-		_, err = r.Get(ctx)
+		r := publisher.Publish(ctx, m)
+		_, err := r.Get(ctx)
 		if err == nil {
 			t.Fatal("expected err, got nil")
 		}
@@ -228,16 +223,16 @@ func TestTrace_PublishSpanError(t *testing.T) {
 			t.Errorf("diff: -got, +want:\n%s\n", diff)
 		}
 		e.Reset()
-		topic.ResumePublish(m.OrderingKey)
+		publisher.ResumePublish(m.OrderingKey)
 	})
 
 	t.Run("stopped topic", func(t *testing.T) {
 		// Publishing a message with a stopped publisher should fail too
-		topic.ResumePublish(m.OrderingKey)
-		topic.EnableMessageOrdering = true
-		topic.Stop()
-		r := topic.Publish(ctx, m)
-		_, err = r.Get(ctx)
+		publisher.ResumePublish(m.OrderingKey)
+		publisher.EnableMessageOrdering = true
+		publisher.Stop()
+		r := publisher.Publish(ctx, m)
+		_, err := r.Get(ctx)
 		if err == nil {
 			t.Fatal("expected err, got nil")
 		}
@@ -251,7 +246,7 @@ func TestTrace_PublishSpanError(t *testing.T) {
 			t.Errorf("diff: -got, +want:\n%s\n", diff)
 		}
 		e.Reset()
-		topic.ResumePublish(m.OrderingKey)
+		publisher.ResumePublish(m.OrderingKey)
 	})
 
 	t.Run("flow control error", func(t *testing.T) {
@@ -260,18 +255,15 @@ func TestTrace_PublishSpanError(t *testing.T) {
 		// which are immutable after publish.
 		topicID := "t2"
 
-		topic, err := c.CreateTopic(ctx, topicID)
-		if err != nil {
-			t.Fatalf("failed to create topic: %v", err)
-		}
-		topic.EnableMessageOrdering = true
-		topic.PublishSettings.FlowControlSettings = FlowControlSettings{
+		publisher := mustCreateTopic(t, c, topicID)
+		publisher.EnableMessageOrdering = true
+		publisher.PublishSettings.FlowControlSettings = FlowControlSettings{
 			LimitExceededBehavior: FlowControlSignalError,
 			MaxOutstandingBytes:   1,
 		}
 
-		r := topic.Publish(ctx, m)
-		_, err = r.Get(ctx)
+		r := publisher.Publish(ctx, m)
+		_, err := r.Get(ctx)
 		if err == nil {
 			t.Fatal("expected err, got nil")
 		}
@@ -302,27 +294,25 @@ func TestTrace_SubscribeSpans(t *testing.T) {
 
 	topicID := "t"
 
-	topic, err := c.CreateTopic(ctx, topicID)
-	if err != nil {
-		t.Fatalf("failed to create topic: %v", err)
-	}
+	publisher := mustCreateTopic(t, c, topicID)
 
 	subID := "s"
 	enableEOS := false
 
-	sub, err := c.CreateSubscription(ctx, subID, SubscriptionConfig{
-		Topic:                     topic,
+	pbs, err := c.SubscriptionAdminClient.CreateSubscription(ctx, &pb.Subscription{
+		Name:                      subID,
+		Topic:                     publisher.Name(),
 		EnableExactlyOnceDelivery: enableEOS,
 	})
 	if err != nil {
 		t.Fatalf("failed to create subscription: %v", err)
 	}
 	if m.OrderingKey != "" {
-		topic.EnableMessageOrdering = true
+		publisher.EnableMessageOrdering = true
 	}
 
 	// Call publish before enabling tracer provider to only test subscribe spans.
-	r := topic.Publish(ctx, m)
+	r := publisher.Publish(ctx, m)
 	_, err = r.Get(ctx)
 	if err != nil {
 		t.Fatalf("failed to publish message: %v", err)
@@ -336,6 +326,7 @@ func TestTrace_SubscribeSpans(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(ctx)
 
+	sub := c.Subscriber(pbs.Name)
 	sub.Receive(ctx, func(ctx context.Context, m *Message) {
 		// Add artificial processsing time so the message isn't acked before the modack can be sent out.
 		time.Sleep(1 * time.Second)
@@ -494,19 +485,11 @@ func TestTrace_TracingNotEnabled(t *testing.T) {
 	topicID := "t"
 	subID := "s"
 
-	topic, err := c.CreateTopic(ctx, topicID)
-	if err != nil {
-		t.Fatalf("failed to create topic: %v", err)
-	}
-	sub, err := c.CreateSubscription(ctx, subID, SubscriptionConfig{
-		Topic: topic,
-	})
-	if err != nil {
-		t.Fatalf("failed to create subscription: %v", err)
-	}
+	publisher := mustCreateTopic(t, c, topicID)
+	sub := mustCreateSubscription(t, c, subID, topicID)
 
-	r := topic.Publish(ctx, m)
-	_, err = r.Get(ctx)
+	r := publisher.Publish(ctx, m)
+	_, err := r.Get(ctx)
 	if err != nil {
 		t.Fatalf("failed to publish message: %v", err)
 	}
@@ -695,21 +678,13 @@ func BenchmarkNoTracingEnabled(b *testing.B) {
 	topicID := "t"
 	subID := "s"
 
-	topic, err := c.CreateTopic(ctx, topicID)
-	if err != nil {
-		b.Fatalf("failed to create topic: %v", err)
-	}
-	sub, err := c.CreateSubscription(ctx, subID, SubscriptionConfig{
-		Topic: topic,
-	})
-	if err != nil {
-		b.Fatalf("failed to create subscription: %v", err)
-	}
+	publisher := mustCreateTopic(t, c, topicID)
+	sub := mustCreateSubscription(t, c, subID, topicID)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		r := topic.Publish(ctx, m)
-		_, err = r.Get(ctx)
+		r := publisher.Publish(ctx, m)
+		_, err := r.Get(ctx)
 		if err != nil {
 			b.Fatalf("failed to publish message: %v", err)
 		}
@@ -725,6 +700,5 @@ func BenchmarkNoTracingEnabled(b *testing.B) {
 		if len(got) != 0 {
 			b.Fatalf("expected no spans, got %d", len(got))
 		}
-
 	}
 }

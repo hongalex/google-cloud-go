@@ -184,8 +184,8 @@ func (s *SubServer) callback(_ context.Context, m *pubsub.Message) {
 
 	latency := time.Now().UnixNano()/1e6 - sendTimeMillis
 	ident := &pb.MessageIdentifier{
-		PublisherClientId: id,
-		SequenceNumber:    int32(seqNum),
+		TopicAdminClientId: id,
+		SequenceNumber:     int32(seqNum),
 	}
 
 	s.mu.Lock()

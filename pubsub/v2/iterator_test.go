@@ -121,7 +121,7 @@ func TestMaxExtensionPeriod(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := 15 * time.Second
-	iter := newMessageIterator(client.subc, fullyQualifiedTopicName, &pullOptions{
+	iter := newMessageIterator(client.SubscriptionAdminClient, fullyQualifiedTopicName, &pullOptions{
 		maxExtensionPeriod: want,
 	})
 
@@ -413,7 +413,7 @@ func TestIterator_SynchronousPullCancel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	iter := newMessageIterator(client.subc, fullyQualifiedTopicName, &pullOptions{})
+	iter := newMessageIterator(client.SubscriptionAdminClient, fullyQualifiedTopicName, &pullOptions{})
 
 	// Cancelling the iterator and pulling should not result in any errors.
 	iter.cancel()
@@ -528,7 +528,7 @@ func TestIterator_StreamingPullExactlyOnce(t *testing.T) {
 	// Make sure to call publish before constructing the iterator.
 	srv.Publish(fullyQualifiedTopicName, []byte("msg"), nil)
 
-	iter := newMessageIterator(client.subc, fullyQualifiedSubName, &pullOptions{
+	iter := newMessageIterator(client.SubscriptionAdminClient, fullyQualifiedSubName, &pullOptions{
 		synchronous:            false,
 		maxOutstandingMessages: 100,
 		maxOutstandingBytes:    1e6,
@@ -549,7 +549,7 @@ func TestIterator_StreamingPullExactlyOnce(t *testing.T) {
 func TestAddToDistribution(t *testing.T) {
 	c, _ := newFake(t)
 
-	iter := newMessageIterator(c.subc, "projects/p/subscriptions/some-sub", &pullOptions{})
+	iter := newMessageIterator(c.SubscriptionAdminClient, "projects/p/subscriptions/some-sub", &pullOptions{})
 
 	// Start with a datapoint that's too small that should be bounded to 10s.
 	receiveTime := time.Now().Add(time.Duration(-1) * time.Second)
@@ -591,7 +591,7 @@ func TestPingStreamAckDeadline(t *testing.T) {
 		t.Errorf("failed to create subscription: %v", err)
 	}
 
-	iter := newMessageIterator(c.subc, fullyQualifiedSubName, &pullOptions{})
+	iter := newMessageIterator(c.SubscriptionAdminClient, fullyQualifiedSubName, &pullOptions{})
 	defer iter.stop()
 
 	iter.eoMu.RLock()

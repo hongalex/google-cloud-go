@@ -29,7 +29,7 @@ import (
 
 	iampb "cloud.google.com/go/iam/apiv1/iampb"
 	"cloud.google.com/go/internal/testutil"
-	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
+	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -548,7 +548,7 @@ func TestClearMessages(t *testing.T) {
 }
 
 // Note: this sets the fake's "now" time, so it is sensitive to concurrent changes to "now".
-func publish(t *testing.T, srv *Server, pclient pb.PublisherClient, topic *pb.Topic, messages []*pb.PubsubMessage) map[string]*pb.PubsubMessage {
+func publish(t *testing.T, srv *Server, pclient pb.TopicAdminClient, topic *pb.Topic, messages []*pb.PubsubMessage) map[string]*pb.PubsubMessage {
 	pubTime := time.Now()
 	srv.SetTimeNowFunc(func() time.Time { return pubTime })
 	defer srv.SetTimeNowFunc(time.Now)
@@ -1237,7 +1237,7 @@ func TestSchemaAdminClient(t *testing.T) {
 
 }
 
-func mustStartStreamingPull(ctx context.Context, t *testing.T, sc pb.SubscriberClient, sub *pb.Subscription) pb.Subscriber_StreamingPullClient {
+func mustStartStreamingPull(ctx context.Context, t *testing.T, sc pb.SubscriptionAdminClient, sub *pb.Subscription) pb.SubscriptionAdmin_StreamingPullClient {
 	spc, err := sc.StreamingPull(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -1251,7 +1251,7 @@ func mustStartStreamingPull(ctx context.Context, t *testing.T, sc pb.SubscriberC
 	return spc
 }
 
-func pullN(ctx context.Context, t *testing.T, n int, sc pb.SubscriberClient, sub *pb.Subscription) map[string]*pb.ReceivedMessage {
+func pullN(ctx context.Context, t *testing.T, n int, sc pb.SubscriptionAdminClient, sub *pb.Subscription) map[string]*pb.ReceivedMessage {
 	got := map[string]*pb.ReceivedMessage{}
 	for i := 0; len(got) < n; i++ {
 		res, err := sc.Pull(ctx, &pb.PullRequest{Subscription: sub.Name, MaxMessages: int32(n - len(got))})
@@ -1265,7 +1265,7 @@ func pullN(ctx context.Context, t *testing.T, n int, sc pb.SubscriberClient, sub
 	return got
 }
 
-func streamingPullN(ctx context.Context, t *testing.T, n int, sc pb.SubscriberClient, sub *pb.Subscription) map[string]*pb.ReceivedMessage {
+func streamingPullN(ctx context.Context, t *testing.T, n int, sc pb.SubscriptionAdminClient, sub *pb.Subscription) map[string]*pb.ReceivedMessage {
 	spc := mustStartStreamingPull(ctx, t, sc, sub)
 	got := map[string]*pb.ReceivedMessage{}
 	for i := 0; i < n; i++ {
@@ -1295,7 +1295,7 @@ func pubsubMessages(rms map[string]*pb.ReceivedMessage) map[string]*pb.PubsubMes
 	return ms
 }
 
-func mustCreateTopic(ctx context.Context, t *testing.T, pc pb.PublisherClient, topic *pb.Topic) *pb.Topic {
+func mustCreateTopic(ctx context.Context, t *testing.T, pc pb.TopicAdminClient, topic *pb.Topic) *pb.Topic {
 	top, err := pc.CreateTopic(ctx, topic)
 	if err != nil {
 		t.Fatal(err)
@@ -1303,7 +1303,7 @@ func mustCreateTopic(ctx context.Context, t *testing.T, pc pb.PublisherClient, t
 	return top
 }
 
-func mustUpdateTopic(ctx context.Context, t *testing.T, pc pb.PublisherClient, req *pb.UpdateTopicRequest) *pb.Topic {
+func mustUpdateTopic(ctx context.Context, t *testing.T, pc pb.TopicAdminClient, req *pb.UpdateTopicRequest) *pb.Topic {
 	top, err := pc.UpdateTopic(ctx, req)
 	if err != nil {
 		t.Fatal(err)
@@ -1311,7 +1311,7 @@ func mustUpdateTopic(ctx context.Context, t *testing.T, pc pb.PublisherClient, r
 	return top
 }
 
-func mustCreateSubscription(ctx context.Context, t *testing.T, sc pb.SubscriberClient, sub *pb.Subscription) *pb.Subscription {
+func mustCreateSubscription(ctx context.Context, t *testing.T, sc pb.SubscriptionAdminClient, sub *pb.Subscription) *pb.Subscription {
 	sub, err := sc.CreateSubscription(ctx, sub)
 	if err != nil {
 		t.Fatal(err)
@@ -1319,7 +1319,7 @@ func mustCreateSubscription(ctx context.Context, t *testing.T, sc pb.SubscriberC
 	return sub
 }
 
-func mustUpdateSubscription(ctx context.Context, t *testing.T, sc pb.SubscriberClient, req *pb.UpdateSubscriptionRequest) *pb.Subscription {
+func mustUpdateSubscription(ctx context.Context, t *testing.T, sc pb.SubscriptionAdminClient, req *pb.UpdateSubscriptionRequest) *pb.Subscription {
 	sub, err := sc.UpdateSubscription(ctx, req)
 	if err != nil {
 		t.Fatal(err)
@@ -1331,13 +1331,13 @@ func mustUpdateSubscription(ctx context.Context, t *testing.T, sc pb.SubscriberC
 // client. Its final return is a cleanup function.
 //
 // Note: be sure to call cleanup!
-func newFake(ctx context.Context, t *testing.T, opts ...ServerReactorOption) (pb.PublisherClient, pb.SubscriberClient, *Server, func()) {
+func newFake(ctx context.Context, t *testing.T, opts ...ServerReactorOption) (pb.TopicAdminClient, pb.SubscriptionAdminClient, *Server, func()) {
 	srv := NewServer(opts...)
 	conn, err := grpc.DialContext(ctx, srv.Addr, grpc.WithInsecure())
 	if err != nil {
 		t.Fatal(err)
 	}
-	return pb.NewPublisherClient(conn), pb.NewSubscriberClient(conn), srv, func() {
+	return pb.NewTopicAdminClient(conn), pb.NewSubscriptionAdminClient(conn), srv, func() {
 		srv.Close()
 		conn.Close()
 	}

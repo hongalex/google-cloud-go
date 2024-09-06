@@ -5904,22 +5904,22 @@ var file_google_pubsub_v1_pubsub_proto_depIdxs = []int32{
 	18, // 60: google.pubsub.v1.Publisher.ListTopicSnapshots:input_type -> google.pubsub.v1.ListTopicSnapshotsRequest
 	20, // 61: google.pubsub.v1.Publisher.DeleteTopic:input_type -> google.pubsub.v1.DeleteTopicRequest
 	21, // 62: google.pubsub.v1.Publisher.DetachSubscription:input_type -> google.pubsub.v1.DetachSubscriptionRequest
-	23, // 63: google.pubsub.v1.SubscriptionAdmin.CreateSubscription:input_type -> google.pubsub.v1.Subscription
-	31, // 64: google.pubsub.v1.SubscriptionAdmin.GetSubscription:input_type -> google.pubsub.v1.GetSubscriptionRequest
-	32, // 65: google.pubsub.v1.SubscriptionAdmin.UpdateSubscription:input_type -> google.pubsub.v1.UpdateSubscriptionRequest
-	33, // 66: google.pubsub.v1.SubscriptionAdmin.ListSubscriptions:input_type -> google.pubsub.v1.ListSubscriptionsRequest
-	35, // 67: google.pubsub.v1.SubscriptionAdmin.DeleteSubscription:input_type -> google.pubsub.v1.DeleteSubscriptionRequest
-	39, // 68: google.pubsub.v1.SubscriptionAdmin.ModifyAckDeadline:input_type -> google.pubsub.v1.ModifyAckDeadlineRequest
-	40, // 69: google.pubsub.v1.SubscriptionAdmin.Acknowledge:input_type -> google.pubsub.v1.AcknowledgeRequest
-	37, // 70: google.pubsub.v1.SubscriptionAdmin.Pull:input_type -> google.pubsub.v1.PullRequest
-	41, // 71: google.pubsub.v1.SubscriptionAdmin.StreamingPull:input_type -> google.pubsub.v1.StreamingPullRequest
-	36, // 72: google.pubsub.v1.SubscriptionAdmin.ModifyPushConfig:input_type -> google.pubsub.v1.ModifyPushConfigRequest
-	46, // 73: google.pubsub.v1.SubscriptionAdmin.GetSnapshot:input_type -> google.pubsub.v1.GetSnapshotRequest
-	47, // 74: google.pubsub.v1.SubscriptionAdmin.ListSnapshots:input_type -> google.pubsub.v1.ListSnapshotsRequest
-	43, // 75: google.pubsub.v1.SubscriptionAdmin.CreateSnapshot:input_type -> google.pubsub.v1.CreateSnapshotRequest
-	44, // 76: google.pubsub.v1.SubscriptionAdmin.UpdateSnapshot:input_type -> google.pubsub.v1.UpdateSnapshotRequest
-	49, // 77: google.pubsub.v1.SubscriptionAdmin.DeleteSnapshot:input_type -> google.pubsub.v1.DeleteSnapshotRequest
-	50, // 78: google.pubsub.v1.SubscriptionAdmin.Seek:input_type -> google.pubsub.v1.SeekRequest
+	23, // 63: google.pubsub.v1.Subscriber.CreateSubscription:input_type -> google.pubsub.v1.Subscription
+	31, // 64: google.pubsub.v1.Subscriber.GetSubscription:input_type -> google.pubsub.v1.GetSubscriptionRequest
+	32, // 65: google.pubsub.v1.Subscriber.UpdateSubscription:input_type -> google.pubsub.v1.UpdateSubscriptionRequest
+	33, // 66: google.pubsub.v1.Subscriber.ListSubscriptions:input_type -> google.pubsub.v1.ListSubscriptionsRequest
+	35, // 67: google.pubsub.v1.Subscriber.DeleteSubscription:input_type -> google.pubsub.v1.DeleteSubscriptionRequest
+	39, // 68: google.pubsub.v1.Subscriber.ModifyAckDeadline:input_type -> google.pubsub.v1.ModifyAckDeadlineRequest
+	40, // 69: google.pubsub.v1.Subscriber.Acknowledge:input_type -> google.pubsub.v1.AcknowledgeRequest
+	37, // 70: google.pubsub.v1.Subscriber.Pull:input_type -> google.pubsub.v1.PullRequest
+	41, // 71: google.pubsub.v1.Subscriber.StreamingPull:input_type -> google.pubsub.v1.StreamingPullRequest
+	36, // 72: google.pubsub.v1.Subscriber.ModifyPushConfig:input_type -> google.pubsub.v1.ModifyPushConfigRequest
+	46, // 73: google.pubsub.v1.Subscriber.GetSnapshot:input_type -> google.pubsub.v1.GetSnapshotRequest
+	47, // 74: google.pubsub.v1.Subscriber.ListSnapshots:input_type -> google.pubsub.v1.ListSnapshotsRequest
+	43, // 75: google.pubsub.v1.Subscriber.CreateSnapshot:input_type -> google.pubsub.v1.CreateSnapshotRequest
+	44, // 76: google.pubsub.v1.Subscriber.UpdateSnapshot:input_type -> google.pubsub.v1.UpdateSnapshotRequest
+	49, // 77: google.pubsub.v1.Subscriber.DeleteSnapshot:input_type -> google.pubsub.v1.DeleteSnapshotRequest
+	50, // 78: google.pubsub.v1.Subscriber.Seek:input_type -> google.pubsub.v1.SeekRequest
 	8,  // 79: google.pubsub.v1.Publisher.CreateTopic:output_type -> google.pubsub.v1.Topic
 	8,  // 80: google.pubsub.v1.Publisher.UpdateTopic:output_type -> google.pubsub.v1.Topic
 	13, // 81: google.pubsub.v1.Publisher.Publish:output_type -> google.pubsub.v1.PublishResponse
@@ -5929,22 +5929,22 @@ var file_google_pubsub_v1_pubsub_proto_depIdxs = []int32{
 	19, // 85: google.pubsub.v1.Publisher.ListTopicSnapshots:output_type -> google.pubsub.v1.ListTopicSnapshotsResponse
 	71, // 86: google.pubsub.v1.Publisher.DeleteTopic:output_type -> google.protobuf.Empty
 	22, // 87: google.pubsub.v1.Publisher.DetachSubscription:output_type -> google.pubsub.v1.DetachSubscriptionResponse
-	23, // 88: google.pubsub.v1.SubscriptionAdmin.CreateSubscription:output_type -> google.pubsub.v1.Subscription
-	23, // 89: google.pubsub.v1.SubscriptionAdmin.GetSubscription:output_type -> google.pubsub.v1.Subscription
-	23, // 90: google.pubsub.v1.SubscriptionAdmin.UpdateSubscription:output_type -> google.pubsub.v1.Subscription
-	34, // 91: google.pubsub.v1.SubscriptionAdmin.ListSubscriptions:output_type -> google.pubsub.v1.ListSubscriptionsResponse
-	71, // 92: google.pubsub.v1.SubscriptionAdmin.DeleteSubscription:output_type -> google.protobuf.Empty
-	71, // 93: google.pubsub.v1.SubscriptionAdmin.ModifyAckDeadline:output_type -> google.protobuf.Empty
-	71, // 94: google.pubsub.v1.SubscriptionAdmin.Acknowledge:output_type -> google.protobuf.Empty
-	38, // 95: google.pubsub.v1.SubscriptionAdmin.Pull:output_type -> google.pubsub.v1.PullResponse
-	42, // 96: google.pubsub.v1.SubscriptionAdmin.StreamingPull:output_type -> google.pubsub.v1.StreamingPullResponse
-	71, // 97: google.pubsub.v1.SubscriptionAdmin.ModifyPushConfig:output_type -> google.protobuf.Empty
-	45, // 98: google.pubsub.v1.SubscriptionAdmin.GetSnapshot:output_type -> google.pubsub.v1.Snapshot
-	48, // 99: google.pubsub.v1.SubscriptionAdmin.ListSnapshots:output_type -> google.pubsub.v1.ListSnapshotsResponse
-	45, // 100: google.pubsub.v1.SubscriptionAdmin.CreateSnapshot:output_type -> google.pubsub.v1.Snapshot
-	45, // 101: google.pubsub.v1.SubscriptionAdmin.UpdateSnapshot:output_type -> google.pubsub.v1.Snapshot
-	71, // 102: google.pubsub.v1.SubscriptionAdmin.DeleteSnapshot:output_type -> google.protobuf.Empty
-	51, // 103: google.pubsub.v1.SubscriptionAdmin.Seek:output_type -> google.pubsub.v1.SeekResponse
+	23, // 88: google.pubsub.v1.Subscriber.CreateSubscription:output_type -> google.pubsub.v1.Subscription
+	23, // 89: google.pubsub.v1.Subscriber.GetSubscription:output_type -> google.pubsub.v1.Subscription
+	23, // 90: google.pubsub.v1.Subscriber.UpdateSubscription:output_type -> google.pubsub.v1.Subscription
+	34, // 91: google.pubsub.v1.Subscriber.ListSubscriptions:output_type -> google.pubsub.v1.ListSubscriptionsResponse
+	71, // 92: google.pubsub.v1.Subscriber.DeleteSubscription:output_type -> google.protobuf.Empty
+	71, // 93: google.pubsub.v1.Subscriber.ModifyAckDeadline:output_type -> google.protobuf.Empty
+	71, // 94: google.pubsub.v1.Subscriber.Acknowledge:output_type -> google.protobuf.Empty
+	38, // 95: google.pubsub.v1.Subscriber.Pull:output_type -> google.pubsub.v1.PullResponse
+	42, // 96: google.pubsub.v1.Subscriber.StreamingPull:output_type -> google.pubsub.v1.StreamingPullResponse
+	71, // 97: google.pubsub.v1.Subscriber.ModifyPushConfig:output_type -> google.protobuf.Empty
+	45, // 98: google.pubsub.v1.Subscriber.GetSnapshot:output_type -> google.pubsub.v1.Snapshot
+	48, // 99: google.pubsub.v1.Subscriber.ListSnapshots:output_type -> google.pubsub.v1.ListSnapshotsResponse
+	45, // 100: google.pubsub.v1.Subscriber.CreateSnapshot:output_type -> google.pubsub.v1.Snapshot
+	45, // 101: google.pubsub.v1.Subscriber.UpdateSnapshot:output_type -> google.pubsub.v1.Snapshot
+	71, // 102: google.pubsub.v1.Subscriber.DeleteSnapshot:output_type -> google.protobuf.Empty
+	51, // 103: google.pubsub.v1.Subscriber.Seek:output_type -> google.pubsub.v1.SeekResponse
 	79, // [79:104] is the sub-list for method output_type
 	54, // [54:79] is the sub-list for method input_type
 	54, // [54:54] is the sub-list for extension type_name
@@ -7210,7 +7210,7 @@ func NewSubscriptionAdminClient(cc grpc.ClientConnInterface) SubscriptionAdminCl
 
 func (c *subscriptionAdminClient) CreateSubscription(ctx context.Context, in *Subscription, opts ...grpc.CallOption) (*Subscription, error) {
 	out := new(Subscription)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/CreateSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/CreateSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7219,7 +7219,7 @@ func (c *subscriptionAdminClient) CreateSubscription(ctx context.Context, in *Su
 
 func (c *subscriptionAdminClient) GetSubscription(ctx context.Context, in *GetSubscriptionRequest, opts ...grpc.CallOption) (*Subscription, error) {
 	out := new(Subscription)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/GetSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/GetSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7228,7 +7228,7 @@ func (c *subscriptionAdminClient) GetSubscription(ctx context.Context, in *GetSu
 
 func (c *subscriptionAdminClient) UpdateSubscription(ctx context.Context, in *UpdateSubscriptionRequest, opts ...grpc.CallOption) (*Subscription, error) {
 	out := new(Subscription)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/UpdateSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/UpdateSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7237,7 +7237,7 @@ func (c *subscriptionAdminClient) UpdateSubscription(ctx context.Context, in *Up
 
 func (c *subscriptionAdminClient) ListSubscriptions(ctx context.Context, in *ListSubscriptionsRequest, opts ...grpc.CallOption) (*ListSubscriptionsResponse, error) {
 	out := new(ListSubscriptionsResponse)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/ListSubscriptions", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/ListSubscriptions", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7246,7 +7246,7 @@ func (c *subscriptionAdminClient) ListSubscriptions(ctx context.Context, in *Lis
 
 func (c *subscriptionAdminClient) DeleteSubscription(ctx context.Context, in *DeleteSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/DeleteSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/DeleteSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7255,7 +7255,7 @@ func (c *subscriptionAdminClient) DeleteSubscription(ctx context.Context, in *De
 
 func (c *subscriptionAdminClient) ModifyAckDeadline(ctx context.Context, in *ModifyAckDeadlineRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/ModifyAckDeadline", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/ModifyAckDeadline", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7264,7 +7264,7 @@ func (c *subscriptionAdminClient) ModifyAckDeadline(ctx context.Context, in *Mod
 
 func (c *subscriptionAdminClient) Acknowledge(ctx context.Context, in *AcknowledgeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/Acknowledge", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/Acknowledge", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7273,7 +7273,7 @@ func (c *subscriptionAdminClient) Acknowledge(ctx context.Context, in *Acknowled
 
 func (c *subscriptionAdminClient) Pull(ctx context.Context, in *PullRequest, opts ...grpc.CallOption) (*PullResponse, error) {
 	out := new(PullResponse)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/Pull", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/Pull", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7313,7 +7313,7 @@ func (x *subscriberStreamingPullClient) Recv() (*StreamingPullResponse, error) {
 
 func (c *subscriptionAdminClient) ModifyPushConfig(ctx context.Context, in *ModifyPushConfigRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/ModifyPushConfig", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/ModifyPushConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7322,7 +7322,7 @@ func (c *subscriptionAdminClient) ModifyPushConfig(ctx context.Context, in *Modi
 
 func (c *subscriptionAdminClient) GetSnapshot(ctx context.Context, in *GetSnapshotRequest, opts ...grpc.CallOption) (*Snapshot, error) {
 	out := new(Snapshot)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/GetSnapshot", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/GetSnapshot", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7331,7 +7331,7 @@ func (c *subscriptionAdminClient) GetSnapshot(ctx context.Context, in *GetSnapsh
 
 func (c *subscriptionAdminClient) ListSnapshots(ctx context.Context, in *ListSnapshotsRequest, opts ...grpc.CallOption) (*ListSnapshotsResponse, error) {
 	out := new(ListSnapshotsResponse)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/ListSnapshots", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/ListSnapshots", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7340,7 +7340,7 @@ func (c *subscriptionAdminClient) ListSnapshots(ctx context.Context, in *ListSna
 
 func (c *subscriptionAdminClient) CreateSnapshot(ctx context.Context, in *CreateSnapshotRequest, opts ...grpc.CallOption) (*Snapshot, error) {
 	out := new(Snapshot)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/CreateSnapshot", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/CreateSnapshot", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7349,7 +7349,7 @@ func (c *subscriptionAdminClient) CreateSnapshot(ctx context.Context, in *Create
 
 func (c *subscriptionAdminClient) UpdateSnapshot(ctx context.Context, in *UpdateSnapshotRequest, opts ...grpc.CallOption) (*Snapshot, error) {
 	out := new(Snapshot)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/UpdateSnapshot", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/UpdateSnapshot", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7358,7 +7358,7 @@ func (c *subscriptionAdminClient) UpdateSnapshot(ctx context.Context, in *Update
 
 func (c *subscriptionAdminClient) DeleteSnapshot(ctx context.Context, in *DeleteSnapshotRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/DeleteSnapshot", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/DeleteSnapshot", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7367,7 +7367,7 @@ func (c *subscriptionAdminClient) DeleteSnapshot(ctx context.Context, in *Delete
 
 func (c *subscriptionAdminClient) Seek(ctx context.Context, in *SeekRequest, opts ...grpc.CallOption) (*SeekResponse, error) {
 	out := new(SeekResponse)
-	err := c.cc.Invoke(ctx, "/google.pubsub.v1.SubscriptionAdmin/Seek", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/google.pubsub.v1.Subscriber/Seek", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7556,7 +7556,7 @@ func _SubscriptionAdmin_CreateSubscription_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/CreateSubscription",
+		FullMethod: "/google.pubsub.v1.Subscriber/CreateSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).CreateSubscription(ctx, req.(*Subscription))
@@ -7574,7 +7574,7 @@ func _SubscriptionAdmin_GetSubscription_Handler(srv interface{}, ctx context.Con
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/GetSubscription",
+		FullMethod: "/google.pubsub.v1.Subscriber/GetSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).GetSubscription(ctx, req.(*GetSubscriptionRequest))
@@ -7592,7 +7592,7 @@ func _SubscriptionAdmin_UpdateSubscription_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/UpdateSubscription",
+		FullMethod: "/google.pubsub.v1.Subscriber/UpdateSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).UpdateSubscription(ctx, req.(*UpdateSubscriptionRequest))
@@ -7610,7 +7610,7 @@ func _SubscriptionAdmin_ListSubscriptions_Handler(srv interface{}, ctx context.C
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/ListSubscriptions",
+		FullMethod: "/google.pubsub.v1.Subscriber/ListSubscriptions",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).ListSubscriptions(ctx, req.(*ListSubscriptionsRequest))
@@ -7628,7 +7628,7 @@ func _SubscriptionAdmin_DeleteSubscription_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/DeleteSubscription",
+		FullMethod: "/google.pubsub.v1.Subscriber/DeleteSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).DeleteSubscription(ctx, req.(*DeleteSubscriptionRequest))
@@ -7646,7 +7646,7 @@ func _SubscriptionAdmin_ModifyAckDeadline_Handler(srv interface{}, ctx context.C
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/ModifyAckDeadline",
+		FullMethod: "/google.pubsub.v1.Subscriber/ModifyAckDeadline",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).ModifyAckDeadline(ctx, req.(*ModifyAckDeadlineRequest))
@@ -7664,7 +7664,7 @@ func _SubscriptionAdmin_Acknowledge_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/Acknowledge",
+		FullMethod: "/google.pubsub.v1.Subscriber/Acknowledge",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).Acknowledge(ctx, req.(*AcknowledgeRequest))
@@ -7682,7 +7682,7 @@ func _SubscriptionAdmin_Pull_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/Pull",
+		FullMethod: "/google.pubsub.v1.Subscriber/Pull",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).Pull(ctx, req.(*PullRequest))
@@ -7726,7 +7726,7 @@ func _SubscriptionAdmin_ModifyPushConfig_Handler(srv interface{}, ctx context.Co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/ModifyPushConfig",
+		FullMethod: "/google.pubsub.v1.Subscriber/ModifyPushConfig",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).ModifyPushConfig(ctx, req.(*ModifyPushConfigRequest))
@@ -7744,7 +7744,7 @@ func _SubscriptionAdmin_GetSnapshot_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/GetSnapshot",
+		FullMethod: "/google.pubsub.v1.Subscriber/GetSnapshot",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).GetSnapshot(ctx, req.(*GetSnapshotRequest))
@@ -7762,7 +7762,7 @@ func _SubscriptionAdmin_ListSnapshots_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/ListSnapshots",
+		FullMethod: "/google.pubsub.v1.Subscriber/ListSnapshots",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).ListSnapshots(ctx, req.(*ListSnapshotsRequest))
@@ -7780,7 +7780,7 @@ func _SubscriptionAdmin_CreateSnapshot_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/CreateSnapshot",
+		FullMethod: "/google.pubsub.v1.Subscriber/CreateSnapshot",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).CreateSnapshot(ctx, req.(*CreateSnapshotRequest))
@@ -7798,7 +7798,7 @@ func _SubscriptionAdmin_UpdateSnapshot_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/UpdateSnapshot",
+		FullMethod: "/google.pubsub.v1.Subscriber/UpdateSnapshot",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).UpdateSnapshot(ctx, req.(*UpdateSnapshotRequest))
@@ -7816,7 +7816,7 @@ func _SubscriptionAdmin_DeleteSnapshot_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/DeleteSnapshot",
+		FullMethod: "/google.pubsub.v1.Subscriber/DeleteSnapshot",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).DeleteSnapshot(ctx, req.(*DeleteSnapshotRequest))
@@ -7834,7 +7834,7 @@ func _SubscriptionAdmin_Seek_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/google.pubsub.v1.SubscriptionAdmin/Seek",
+		FullMethod: "/google.pubsub.v1.Subscriber/Seek",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SubscriptionAdminServer).Seek(ctx, req.(*SeekRequest))
@@ -7843,7 +7843,7 @@ func _SubscriptionAdmin_Seek_Handler(srv interface{}, ctx context.Context, dec f
 }
 
 var _SubscriptionAdmin_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "google.pubsub.v1.SubscriptionAdmin",
+	ServiceName: "google.pubsub.v1.Subscriber",
 	HandlerType: (*SubscriptionAdminServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

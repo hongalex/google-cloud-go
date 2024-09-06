@@ -20,8 +20,12 @@ import (
 	"fmt"
 	"time"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"google.golang.org/api/iterator"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func ExampleNewClient() {
@@ -42,12 +46,12 @@ func ExampleClient_CreateTopic() {
 	}
 
 	// Create a new topic with the given name.
-	topic, err := client.CreateTopic(ctx, "topicName")
+	topicPath := fmt.Sprintf("projects/%s/topics/%s", "project-id", "topic-id")
+	pbTopic, err := client.TopicAdminClient.CreateTopic(ctx, &pb.Topic{Name: topicPath})
 	if err != nil {
 		// TODO: Handle error.
 	}
-
-	_ = topic // TODO: use the topic.
+	_ = pbTopic // TODO: use the protobuf topic.
 }
 
 func ExampleClient_CreateTopicWithConfig() {
@@ -57,30 +61,32 @@ func ExampleClient_CreateTopicWithConfig() {
 		// TODO: Handle error.
 	}
 
-	// Create a new topic with the given name and config.
-	topicConfig := &pubsub.TopicConfig{
-		KMSKeyName: "projects/project-id/locations/global/keyRings/my-key-ring/cryptoKeys/my-key",
-		MessageStoragePolicy: pubsub.MessageStoragePolicy{
+	// Create a new topic with the given config.
+	t := &pb.Topic{
+		Name:       fmt.Sprintf("projects/%s/topics/%s", "project-id", "topic-id"),
+		KmsKeyName: "projects/project-id/locations/global/keyRings/my-key-ring/cryptoKeys/my-key",
+		MessageStoragePolicy: &pb.MessageStoragePolicy{
 			AllowedPersistenceRegions: []string{"us-east1"},
 		},
 	}
-	topic, err := client.CreateTopicWithConfig(ctx, "topicName", topicConfig)
+	pbTopic, err := client.TopicAdminClient.CreateTopic(ctx, t)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	_ = topic // TODO: use the topic.
+	_ = pbTopic // TODO: use the protobuf topic.
 }
 
-// Use TopicInProject to refer to a topic that is not in the client's project, such
+// Use Publisher to refer to a topic that is not in the client's project, such
 // as a public topic.
-func ExampleClient_TopicInProject() {
+func ExampleClient_Publisher() {
 	ctx := context.Background()
 	client, err := pubsub.NewClient(ctx, "project-id")
 	if err != nil {
 		// TODO: Handle error.
 	}
-	topic := client.TopicInProject("topicName", "another-project-id")
-	_ = topic // TODO: use the topic.
+	otherProjectID := "another-project-id"
+	publisher := client.Publisher(fmt.Sprintf("projects/%s/topics/%s", otherProjectID, "my-topic"))
+	_ = publisher // TODO: use the publisher client.
 }
 
 func ExampleClient_CreateSubscription() {
@@ -91,23 +97,26 @@ func ExampleClient_CreateSubscription() {
 	}
 
 	// Create a new topic with the given name.
-	topic, err := client.CreateTopic(ctx, "topicName")
+	topicName := "projects/project-id/topics/topic-id"
+	_, err = client.TopicAdminClient.CreateTopic(ctx, &pb.Topic{Name: topicName})
 	if err != nil {
 		// TODO: Handle error.
 	}
 
 	// Create a new subscription to the previously created topic
 	// with the given name.
-	sub, err := client.CreateSubscription(ctx, "subName", pubsub.SubscriptionConfig{
-		Topic:            topic,
-		AckDeadline:      10 * time.Second,
-		ExpirationPolicy: 25 * time.Hour,
+	subName := "projects/project-id/subscriptions/subscription-id"
+	pbSub, err := client.SubscriptionAdminClient.CreateSubscription(ctx, &pb.Subscription{
+		Name:               subName,
+		Topic:              topicName,
+		AckDeadlineSeconds: 10,
+		ExpirationPolicy:   &pb.ExpirationPolicy{Ttl: durationpb.New(25 * time.Hour)},
 	})
 	if err != nil {
 		// TODO: Handle error.
 	}
 
-	_ = sub // TODO: use the subscription.
+	_ = pbSub // TODO: use the protobuf subscription.
 }
 
 func ExampleClient_CreateSubscription_neverExpire() {
@@ -118,22 +127,25 @@ func ExampleClient_CreateSubscription_neverExpire() {
 	}
 
 	// Create a new topic with the given name.
-	topic, err := client.CreateTopic(ctx, "topicName")
+	topicName := "projects/project-id/topics/topic-id"
+	_, err = client.TopicAdminClient.CreateTopic(ctx, &pb.Topic{Name: topicName})
 	if err != nil {
 		// TODO: Handle error.
 	}
 
-	// Create a new subscription to the previously
-	// created topic and ensure it never expires.
-	sub, err := client.CreateSubscription(ctx, "subName", pubsub.SubscriptionConfig{
-		Topic:            topic,
-		AckDeadline:      10 * time.Second,
-		ExpirationPolicy: time.Duration(0),
+	// Create a new subscription to the previously created topic
+	// with the given name.
+	subName := "projects/project-id/subscriptions/subscription-id"
+	pbSub, err := client.SubscriptionAdminClient.CreateSubscription(ctx, &pb.Subscription{
+		Name:               subName,
+		Topic:              topicName,
+		AckDeadlineSeconds: 10,
+		ExpirationPolicy:   &pb.ExpirationPolicy{Ttl: durationpb.New(0)},
 	})
 	if err != nil {
 		// TODO: Handle error.
 	}
-	_ = sub // TODO: Use the subscription
+	_ = pbSub // TODO: Use the protobuf subscription
 }
 
 func ExampleTopic_Delete() {
@@ -143,26 +155,9 @@ func ExampleTopic_Delete() {
 		// TODO: Handle error.
 	}
 
-	topic := client.Topic("topicName")
-	if err := topic.Delete(ctx); err != nil {
+	topicName := "projects/project-id/topics/topic-id"
+	if err := client.TopicAdminClient.DeleteTopic(ctx, &pb.DeleteTopicRequest{Topic: topicName}); err != nil {
 		// TODO: Handle error.
-	}
-}
-
-func ExampleTopic_Exists() {
-	ctx := context.Background()
-	client, err := pubsub.NewClient(ctx, "project-id")
-	if err != nil {
-		// TODO: Handle error.
-	}
-
-	topic := client.Topic("topicName")
-	ok, err := topic.Exists(ctx)
-	if err != nil {
-		// TODO: Handle error.
-	}
-	if !ok {
-		// Topic doesn't exist.
 	}
 }
 
@@ -173,10 +168,10 @@ func ExampleTopic_Publish() {
 		// TODO: Handle error.
 	}
 
-	topic := client.Topic("topicName")
-	defer topic.Stop()
+	publisher := client.Publisher("topicName")
+	defer publisher.Stop()
 	var results []*pubsub.PublishResult
-	r := topic.Publish(ctx, &pubsub.Message{
+	r := publisher.Publish(ctx, &pubsub.Message{
 		Data: []byte("hello world"),
 	})
 	results = append(results, r)
@@ -196,17 +191,19 @@ func ExampleTopic_Subscriptions() {
 	if err != nil {
 		// TODO: Handle error.
 	}
-	topic := client.Topic("topic-name")
 	// List all subscriptions of the topic (maybe of multiple projects).
-	for subs := topic.Subscriptions(ctx); ; {
-		sub, err := subs.Next()
+	subs := client.TopicAdminClient.ListTopicSubscriptions(ctx, &pb.ListTopicSubscriptionsRequest{
+		Topic: "projects/project-id/topics/topic-id",
+	})
+	for {
+		subName, err := subs.Next()
 		if err == iterator.Done {
 			break
 		}
 		if err != nil {
 			// TODO: Handle error.
 		}
-		_ = sub // TODO: use the subscription.
+		_ = subName // TODO: Use the subscription string.
 	}
 }
 
@@ -214,38 +211,54 @@ func ExampleTopic_Update() {
 	ctx := context.Background()
 	client, err := pubsub.NewClient(ctx, "project-id")
 	if err != nil {
-		// TODO: Handle error.V
+		// TODO: Handle error.
 	}
-	topic := client.Topic("topic-name")
-	topicConfig, err := topic.Update(ctx, pubsub.TopicConfigToUpdate{
-		MessageStoragePolicy: &pubsub.MessageStoragePolicy{
-			AllowedPersistenceRegions: []string{
-				"asia-east1", "asia-northeast1", "asia-southeast1", "australia-southeast1",
-				"europe-north1", "europe-west1", "europe-west2", "europe-west3", "europe-west4",
-				"us-central1", "us-central2", "us-east1", "us-east4", "us-west1", "us-west2"},
+	topicName := "projects/project-id/topics/topic-id"
+	pbTopic, err := client.TopicAdminClient.UpdateTopic(ctx,
+		&pb.UpdateTopicRequest{
+			Topic: &pb.Topic{
+				Name: topicName,
+				MessageStoragePolicy: &pb.MessageStoragePolicy{
+					AllowedPersistenceRegions: []string{
+						"asia-east1", "asia-northeast1", "asia-southeast1", "australia-southeast1",
+						"europe-north1", "europe-west1", "europe-west2", "europe-west3", "europe-west4",
+						"us-central1", "us-central2", "us-east1", "us-east4", "us-west1", "us-west2"},
+				},
+			},
+			UpdateMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"message_storage_policy"},
+			},
 		},
-	})
+	)
+
 	if err != nil {
 		// TODO: Handle error.
 	}
-	_ = topicConfig // TODO: Use TopicConfig
+	_ = pbTopic // TODO: Use protobuf topic
 }
 
 func ExampleTopic_Update_resetMessageStoragePolicy() {
 	ctx := context.Background()
 	client, err := pubsub.NewClient(ctx, "project-id")
 	if err != nil {
-		// TODO: Handle error.V
+		// TODO: Handle error.
 	}
-	topic := client.Topic("topic-name")
-	topicConfig, err := topic.Update(ctx, pubsub.TopicConfigToUpdate{
-		// Just use a non-nil MessageStoragePolicy without any fields.
-		MessageStoragePolicy: &pubsub.MessageStoragePolicy{},
-	})
+	topicName := "projects/project-id/topics/topic-id"
+	pbTopic, err := client.TopicAdminClient.UpdateTopic(ctx,
+		&pb.UpdateTopicRequest{
+			Topic: &pb.Topic{
+				Name: topicName,
+			},
+			UpdateMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"message_storage_policy"},
+			},
+		},
+	)
+
 	if err != nil {
 		// TODO: Handle error.
 	}
-	_ = topicConfig // TODO: Use TopicConfig
+	_ = pbTopic // TODO: Use protobuf topic
 }
 
 func ExampleSubscription_Delete() {
@@ -255,26 +268,11 @@ func ExampleSubscription_Delete() {
 		// TODO: Handle error.
 	}
 
-	sub := client.Subscription("subName")
-	if err := sub.Delete(ctx); err != nil {
-		// TODO: Handle error.
-	}
-}
-
-func ExampleSubscription_Exists() {
-	ctx := context.Background()
-	client, err := pubsub.NewClient(ctx, "project-id")
+	subName := "projects/project-id/subscriptions/sub-id"
+	req := &pb.DeleteSubscriptionRequest{Subscription: subName}
+	err = client.SubscriptionAdminClient.DeleteSubscription(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
-	}
-
-	sub := client.Subscription("subName")
-	ok, err := sub.Exists(ctx)
-	if err != nil {
-		// TODO: Handle error.
-	}
-	if !ok {
-		// Subscription doesn't exist.
 	}
 }
 
@@ -284,12 +282,13 @@ func ExampleSubscription_Config() {
 	if err != nil {
 		// TODO: Handle error.
 	}
-	sub := client.Subscription("subName")
-	config, err := sub.Config(ctx)
+	subName := "projects/project-id/subscriptions/sub-id"
+	req := &pb.GetSubscriptionRequest{Subscription: subName}
+	pbSub, err := client.SubscriptionAdminClient.GetSubscription(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	fmt.Println(config)
+	fmt.Println(pbSub)
 }
 
 func ExampleSubscription_Receive() {
@@ -298,7 +297,8 @@ func ExampleSubscription_Receive() {
 	if err != nil {
 		// TODO: Handle error.
 	}
-	sub := client.Subscription("subName")
+	// Can use either "projects/project-id/subscriptions/sub-id" or just "sub-id" here
+	sub := client.Subscriber("sub-id")
 	err = sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
 		// TODO: Handle message.
 		// NOTE: May be called concurrently; synchronize access to shared memory.
@@ -309,7 +309,7 @@ func ExampleSubscription_Receive() {
 	}
 }
 
-// This example shows how to configure keepalive so that unacknoweldged messages
+// This example shows how to configure keepalive so that unacknowledged messages
 // expire quickly, allowing other subscribers to take them.
 func ExampleSubscription_Receive_maxExtension() {
 	ctx := context.Background()
@@ -317,7 +317,7 @@ func ExampleSubscription_Receive_maxExtension() {
 	if err != nil {
 		// TODO: Handle error.
 	}
-	sub := client.Subscription("subName")
+	sub := client.Subscriber("subNameOrID")
 	// This program is expected to process and acknowledge messages in 30 seconds. If
 	// not, the Pub/Sub API will assume the message is not acknowledged.
 	sub.ReceiveSettings.MaxExtension = 30 * time.Second
@@ -339,7 +339,7 @@ func ExampleSubscription_Receive_maxOutstanding() {
 	if err != nil {
 		// TODO: Handle error.
 	}
-	sub := client.Subscription("subName")
+	sub := client.Subscriber("subNameOrID")
 	sub.ReceiveSettings.MaxOutstandingMessages = 5
 	sub.ReceiveSettings.MaxOutstandingBytes = 10e6
 	err = sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
@@ -357,16 +357,22 @@ func ExampleSubscription_Update() {
 	if err != nil {
 		// TODO: Handle error.
 	}
-	sub := client.Subscription("subName")
-	subConfig, err := sub.Update(ctx, pubsub.SubscriptionConfigToUpdate{
-		PushConfig: &pubsub.PushConfig{Endpoint: "https://example.com/push"},
-		// Make the subscription never expire.
-		ExpirationPolicy: time.Duration(0),
-	})
+	sub := "projects/project-id/subscriptions/subscription-id"
+	req := &pb.UpdateSubscriptionRequest{
+		Subscription: &pb.Subscription{
+			Name: sub,
+			PushConfig: &pb.PushConfig{
+				PushEndpoint: "https://example.com/push",
+			},
+			ExpirationPolicy: &pb.ExpirationPolicy{},
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"push_config", "expiration_policy"}},
+	}
+	pbSub, err := client.SubscriptionAdminClient.UpdateSubscription(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	_ = subConfig // TODO: Use SubscriptionConfig.
+	_ = pbSub // TODO: Use protobuf subscription.
 }
 
 func ExampleSubscription_Update_pushConfigAuthenticationMethod() {
@@ -375,20 +381,28 @@ func ExampleSubscription_Update_pushConfigAuthenticationMethod() {
 	if err != nil {
 		// TODO: Handle error.
 	}
-	sub := client.Subscription("subName")
-	subConfig, err := sub.Update(ctx, pubsub.SubscriptionConfigToUpdate{
-		PushConfig: &pubsub.PushConfig{
-			Endpoint: "https://example.com/push",
-			AuthenticationMethod: &pubsub.OIDCToken{
-				ServiceAccountEmail: "service-account-email",
-				Audience:            "client-12345",
+	sub := "projects/project-id/subscriptions/subscription-id"
+	req := &pb.UpdateSubscriptionRequest{
+		Subscription: &pb.Subscription{
+			Name: sub,
+			PushConfig: &pb.PushConfig{
+				PushEndpoint: "https://example.com/push",
+				AuthenticationMethod: &pb.PushConfig_OidcToken_{
+					OidcToken: &pb.PushConfig_OidcToken{
+						ServiceAccountEmail: "service-account-email",
+						Audience:            "client-12345",
+					},
+				},
 			},
+			ExpirationPolicy: &pb.ExpirationPolicy{},
 		},
-	})
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"push_config"}},
+	}
+	pbSub, err := client.SubscriptionAdminClient.UpdateSubscription(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	_ = subConfig // TODO: Use SubscriptionConfig.
+	_ = pbSub // TODO: Use protobuf subscription.
 }
 
 func ExampleSubscription_CreateSnapshot() {
@@ -397,12 +411,16 @@ func ExampleSubscription_CreateSnapshot() {
 	if err != nil {
 		// TODO: Handle error.
 	}
-	sub := client.Subscription("subName")
-	snapConfig, err := sub.CreateSnapshot(ctx, "snapshotName")
+	subName := "projects/project-id/subscriptions/sub-id"
+	req := &pb.CreateSnapshotRequest{
+		Name:         "projects/project-id/snapshots/new-snapshot",
+		Subscription: subName,
+	}
+	snapConfig, err := client.SubscriptionAdminClient.CreateSnapshot(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	_ = snapConfig // TODO: Use SnapshotConfig.
+	_ = snapConfig // TODO: Use protobuf snapshot.
 }
 
 func ExampleSubscription_SeekToSnapshot() {
@@ -411,9 +429,16 @@ func ExampleSubscription_SeekToSnapshot() {
 	if err != nil {
 		// TODO: Handle error.
 	}
-	sub := client.Subscription("subName")
-	snap := client.Snapshot("snapshotName")
-	if err := sub.SeekToSnapshot(ctx, snap); err != nil {
+	subName := "projects/project-id/subscriptions/sub-id"
+	snapshotName := "projects/project-id/snapshots/snapshot-id"
+	req := &pb.SeekRequest{
+		Subscription: subName,
+		Target: &pb.SeekRequest_Snapshot{
+			Snapshot: snapshotName,
+		},
+	}
+	_, err = client.SubscriptionAdminClient.Seek(ctx, req)
+	if err != nil {
 		// TODO: Handle error.
 	}
 }
@@ -424,8 +449,15 @@ func ExampleSubscription_SeekToTime() {
 	if err != nil {
 		// TODO: Handle error.
 	}
-	sub := client.Subscription("subName")
-	if err := sub.SeekToTime(ctx, time.Now().Add(-time.Hour)); err != nil {
+	subName := "projects/project-id/subscriptions/sub-id"
+	req := &pb.SeekRequest{
+		Subscription: subName,
+		Target: &pb.SeekRequest_Time{
+			Time: timestamppb.New(time.Now().Add(-1 * time.Hour)),
+		},
+	}
+	_, err = client.SubscriptionAdminClient.Seek(ctx, req)
+	if err != nil {
 		// TODO: Handle error.
 	}
 }
@@ -437,8 +469,9 @@ func ExampleSnapshot_Delete() {
 		// TODO: Handle error.
 	}
 
-	snap := client.Snapshot("snapshotName")
-	if err := snap.Delete(ctx); err != nil {
+	snapshotName := "projects/project-id/snapshots/snapshot-id"
+	err = client.SubscriptionAdminClient.DeleteSnapshot(ctx, &pb.DeleteSnapshotRequest{Snapshot: snapshotName})
+	if err != nil {
 		// TODO: Handle error.
 	}
 }
@@ -450,7 +483,10 @@ func ExampleClient_Snapshots() {
 		// TODO: Handle error.
 	}
 	// List all snapshots for the project.
-	iter := client.Snapshots(ctx)
+	req := &pb.ListSnapshotsRequest{
+		Project: "project-id",
+	}
+	iter := client.SubscriptionAdminClient.ListSnapshots(ctx, req)
 	_ = iter // TODO: iterate using Next.
 }
 
@@ -461,16 +497,19 @@ func ExampleSnapshotConfigIterator_Next() {
 		// TODO: Handle error.
 	}
 	// List all snapshots for the project.
-	iter := client.Snapshots(ctx)
+	req := &pb.ListSnapshotsRequest{
+		Project: "project-id",
+	}
+	iter := client.SubscriptionAdminClient.ListSnapshots(ctx, req)
 	for {
-		snapConfig, err := iter.Next()
+		pbSnapshot, err := iter.Next()
 		if err == iterator.Done {
 			break
 		}
 		if err != nil {
 			// TODO: Handle error.
 		}
-		_ = snapConfig // TODO: use the SnapshotConfig.
+		_ = pbSnapshot // TODO: use the protobuf Snapshot.
 	}
 }
 

@@ -28,7 +28,7 @@ import (
 
 	"cloud.google.com/go/internal/testutil"
 	"cloud.google.com/go/pubsub"
-	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
+	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"google.golang.org/api/option"
 	gtransport "google.golang.org/api/transport/grpc"
 	"google.golang.org/grpc"
@@ -119,8 +119,8 @@ func perfClient(pubDelay time.Duration, nConns int, f interface {
 }
 
 type perfServer struct {
-	pb.PublisherServer
-	pb.SubscriberServer
+	pb.TopicAdminServer
+	pb.SubscriptionAdminServer
 
 	Addr     string
 	pubDelay time.Duration
@@ -136,8 +136,8 @@ func newPerfServer(pubDelay time.Duration) (*perfServer, error) {
 		return nil, err
 	}
 	perf := &perfServer{Addr: srv.Addr, pubDelay: pubDelay}
-	pb.RegisterPublisherServer(srv.Gsrv, perf)
-	pb.RegisterSubscriberServer(srv.Gsrv, perf)
+	pb.RegisterTopicAdminServer(srv.Gsrv, perf)
+	pb.RegisterSubscriptionAdminServer(srv.Gsrv, perf)
 	srv.Start()
 	return perf, nil
 }
