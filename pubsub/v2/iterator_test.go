@@ -34,6 +34,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 var (
@@ -231,7 +232,7 @@ func setsAreEqual(haystack, needles []int32) bool {
 
 // startReceiving pretends to be a client. It calls s.Receive and acks messages after some random delay. It also
 // looks out for dupes - any message that arrives twice will cause a failure.
-func startReceiving(ctx context.Context, t *testing.T, s *Subscription, recvdWg *sync.WaitGroup, processTimeSecs *int32) {
+func startReceiving(ctx context.Context, t *testing.T, s *Subscriber, recvdWg *sync.WaitGroup, processTimeSecs *int32) {
 	t.Log("Receiving..")
 
 	var recvdMu sync.Mutex
@@ -329,7 +330,7 @@ func toSet(arr []int32) []int32 {
 
 }
 
-func initConn(ctx context.Context, addr string) (*Subscription, *Client, error) {
+func initConn(ctx context.Context, addr string) (*Subscriber, *Client, error) {
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
 		return nil, nil, err
@@ -341,21 +342,16 @@ func initConn(ctx context.Context, addr string) (*Subscription, *Client, error) 
 		return nil, nil, err
 	}
 
-	topic := client.Publisher(topicName)
-	s, err := client.CreateSubscription(ctx, fmt.Sprintf("sub-%d", time.Now().UnixNano()), SubscriptionConfig{Topic: topic})
+	s, err := client.SubscriptionAdminClient.CreateSubscription(ctx, &pb.Subscription{
+		Name:  fmt.Sprintf("sub-%d", time.Now().UnixNano()),
+		Topic: topicName,
+	})
 	if err != nil {
 		return nil, nil, err
 	}
+	sub := client.Subscriber(s.Name)
 
-	exists, err := s.Exists(ctx)
-	if !exists {
-		return nil, nil, errors.New("Subscription does not exist")
-	}
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return s, client, nil
+	return sub, client, nil
 }
 
 // modackDeadlines takes a map of time => Modack, gathers all the Modack.AckDeadlines,
@@ -514,13 +510,13 @@ func TestIterator_StreamingPullExactlyOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	topic := client.Publisher(topicName)
-	sc := SubscriptionConfig{
-		Topic:                     topic,
+	pbs := &pb.Subscription{
+		Name:                      subName,
+		Topic:                     topicName,
 		EnableMessageOrdering:     true,
 		EnableExactlyOnceDelivery: true,
 	}
-	_, err = client.CreateSubscription(ctx, subName, sc)
+	_, err = client.SubscriptionAdminClient.CreateSubscription(ctx, pbs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -585,8 +581,10 @@ func TestPingStreamAckDeadline(t *testing.T) {
 	defer cancel()
 
 	srv.Publish(fullyQualifiedTopicName, []byte("creating a topic"), nil)
-	topic := c.Publisher(topicName)
-	s, err := c.CreateSubscription(ctx, subName, SubscriptionConfig{Topic: topic})
+	s, err := c.SubscriptionAdminClient.CreateSubscription(ctx, &pb.Subscription{
+		Name:  subName,
+		Topic: fullyQualifiedTopicName,
+	})
 	if err != nil {
 		t.Errorf("failed to create subscription: %v", err)
 	}
@@ -600,8 +598,10 @@ func TestPingStreamAckDeadline(t *testing.T) {
 	}
 	iter.eoMu.RUnlock()
 
-	_, err = s.Update(ctx, SubscriptionConfigToUpdate{
-		EnableExactlyOnceDelivery: true,
+	s.EnableExactlyOnceDelivery = true
+	_, err = c.SubscriptionAdminClient.UpdateSubscription(ctx, &pb.UpdateSubscriptionRequest{
+		Subscription: s,
+		UpdateMask:   &fieldmaskpb.FieldMask{Paths: []string{"enable_exactly_once_delivery"}},
 	})
 	if err != nil {
 		t.Error(err)

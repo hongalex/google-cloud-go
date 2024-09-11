@@ -301,7 +301,7 @@ func TestTrace_SubscribeSpans(t *testing.T) {
 
 	pbs, err := c.SubscriptionAdminClient.CreateSubscription(ctx, &pb.Subscription{
 		Name:                      subID,
-		Topic:                     publisher.Name(),
+		Topic:                     publisher.String(),
 		EnableExactlyOnceDelivery: enableEOS,
 	})
 	if err != nil {
@@ -482,11 +482,11 @@ func TestTrace_TracingNotEnabled(t *testing.T) {
 		Data: []byte("test"),
 	}
 
-	topicID := "t"
-	subID := "s"
-
-	publisher := mustCreateTopic(t, c, topicID)
-	sub := mustCreateSubscription(t, c, subID, topicID)
+	publisher := mustCreateTopic(t, c, "t")
+	sub := mustCreateSubConfig(t, c, &pb.Subscription{
+		Name:  "s",
+		Topic: "t",
+	})
 
 	r := publisher.Publish(ctx, m)
 	_, err := r.Get(ctx)
@@ -675,11 +675,11 @@ func BenchmarkNoTracingEnabled(b *testing.B) {
 		Data: []byte("test"),
 	}
 
-	topicID := "t"
-	subID := "s"
-
-	publisher := mustCreateTopic(t, c, topicID)
-	sub := mustCreateSubscription(t, c, subID, topicID)
+	publisher := mustCreateTopic(t, c, "t")
+	sub := mustCreateSubConfig(t, c, &pb.Subscription{
+		Name:  "s",
+		Topic: "t",
+	})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

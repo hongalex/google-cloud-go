@@ -36,7 +36,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/encoding/protowire"
 )
 
 // Between message receipt and ack (that is, the time spent processing a message) we want to extend the message
@@ -881,26 +880,6 @@ func (it *messageIterator) pingStream() {
 	}
 	it.eoMu.RUnlock()
 	it.ps.Send(spr)
-}
-
-// calcFieldSizeString returns the number of bytes string fields
-// will take up in an encoded proto message.
-func calcFieldSizeString(fields ...string) int {
-	overhead := 0
-	for _, field := range fields {
-		overhead += 1 + len(field) + protowire.SizeVarint(uint64(len(field)))
-	}
-	return overhead
-}
-
-// calcFieldSizeInt returns the number of bytes int fields
-// will take up in an encoded proto message.
-func calcFieldSizeInt(fields ...int) int {
-	overhead := 0
-	for _, field := range fields {
-		overhead += 1 + protowire.SizeVarint(uint64(field))
-	}
-	return overhead
 }
 
 // makeBatches takes a slice of ackIDs and returns a slice of ackID batches.

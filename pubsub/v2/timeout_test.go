@@ -87,7 +87,8 @@ func TestStreamTimeout(t *testing.T) {
 	if err := <-errc; err != nil {
 		t.Fatal(err)
 	}
-	if err := sub.Delete(ctx); err != nil {
+	req := &pb.DeleteSubscriptionRequest{Subscription: sub.Name()}
+	if err := client.SubscriptionAdminClient.DeleteSubscription(ctx, req); err != nil {
 		t.Fatal(err)
 	}
 	n := atomic.LoadInt64(&nSeen)

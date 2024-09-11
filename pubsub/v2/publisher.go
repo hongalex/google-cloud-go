@@ -180,17 +180,19 @@ func newTopic(c *Client, name string) *Publisher {
 	}
 }
 
+// ID returns the unique identifier of the topic for this publisher.
 func (t *Publisher) ID() string {
-	s := strings.Split(t.name, "/")
-	return s[len(s)-1]
+	slash := strings.LastIndex(t.name, "/")
+	if slash == -1 {
+		// name is not a fully-qualified name.
+		panic("bad topic name")
+	}
+	return t.name[slash+1:]
 }
 
-func (t *Publisher) Name() string {
+// String returns the globally unique printable name of the topic for this publisher.
+func (t *Publisher) String() string {
 	return t.name
-}
-
-func (t *Publisher) ProjectID() string {
-	return t.c.projectID
 }
 
 // ErrTopicStopped indicates that topic has been stopped and further publishing will fail.

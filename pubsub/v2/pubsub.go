@@ -236,7 +236,3 @@ func (c *Client) Close() error {
 	}
 	return nil
 }
-
-func (c *Client) fullyQualifiedProjectName() string {
-	return fmt.Sprintf("projects/%s", c.projectID)
-}

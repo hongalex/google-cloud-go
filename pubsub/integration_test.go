@@ -439,7 +439,7 @@ func TestIntegration_LargePublishSize(t *testing.T) {
 
 	// Calculate the largest possible message length that is still valid.
 	// First, calculate the max length of the encoded message accounting for the topic name.
-	length := MaxPublishRequestBytes - calcFieldSizeString(topic.String())
+	length := MaxPublishRequestBytes - calcFieldSizeString(topic.Name())
 	// Next, account for the overhead from encoding an individual PubsubMessage,
 	// and the inner PubsubMessage.Data field.
 	pbMsgOverhead := 1 + protowire.SizeVarint(uint64(length))
@@ -447,7 +447,7 @@ func TestIntegration_LargePublishSize(t *testing.T) {
 	maxLengthSingleMessage := length - pbMsgOverhead - dataOverhead
 
 	publishReq := &pb.PublishRequest{
-		Topic: topic.String(),
+		Topic: topic.Name(),
 		Messages: []*pb.PubsubMessage{
 			{
 				Data: bytes.Repeat([]byte{'A'}, maxLengthSingleMessage),
@@ -1549,7 +1549,7 @@ func TestIntegration_CreateSubscription_DeadLetterPolicy(t *testing.T) {
 	cfg := SubscriptionConfig{
 		Topic: topic,
 		DeadLetterPolicy: &DeadLetterPolicy{
-			DeadLetterTopic: deadLetterTopic.String(),
+			DeadLetterTopic: deadLetterTopic.Name(),
 		},
 	}
 	var sub *Subscription
@@ -1563,7 +1563,7 @@ func TestIntegration_CreateSubscription_DeadLetterPolicy(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := &DeadLetterPolicy{
-		DeadLetterTopic:     deadLetterTopic.String(),
+		DeadLetterTopic:     deadLetterTopic.Name(),
 		MaxDeliveryAttempts: 5,
 	}
 	if diff := testutil.Diff(got.DeadLetterPolicy, want); diff != "" {
@@ -1662,7 +1662,7 @@ func TestIntegration_DeadLetterPolicy_ClearDeadLetter(t *testing.T) {
 	cfg := SubscriptionConfig{
 		Topic: topic,
 		DeadLetterPolicy: &DeadLetterPolicy{
-			DeadLetterTopic: deadLetterTopic.String(),
+			DeadLetterTopic: deadLetterTopic.Name(),
 		},
 	}
 	var sub *Subscription

@@ -98,7 +98,7 @@ func TestPSTest(t *testing.T) {
 		}
 	}()
 
-	sub := client.Subscription("test-subscription")
+	sub := client.Subscriber("test-subscription")
 
 	ctx, cancel := context.WithCancel(ctx)
 	var mu sync.Mutex

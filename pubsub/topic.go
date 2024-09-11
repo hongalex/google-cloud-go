@@ -676,8 +676,8 @@ func (t *Topic) ID() string {
 	return t.name[slash+1:]
 }
 
-// String returns the printable globally unique name for the topic.
-func (t *Topic) String() string {
+// Name returns the printable globally unique name for the topic.
+func (t *Topic) Name() string {
 	return t.name
 }
 
