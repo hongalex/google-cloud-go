@@ -63,7 +63,7 @@ func (c *Client) Subscriber(nameOrID string) *Subscriber {
 		return newSubscription(c, nameOrID)
 	}
 	// In all other cases, treat the arg as the topicID, even if misformatted.
-	return newSubscription(c, fmt.Sprintf("projects/%s/topics:%s", c.projectID, nameOrID))
+	return newSubscription(c, fmt.Sprintf("projects/%s/subscriptions/%s", c.projectID, nameOrID))
 }
 
 func newSubscription(c *Client, name string) *Subscriber {

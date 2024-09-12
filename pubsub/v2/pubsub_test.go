@@ -66,7 +66,7 @@ func TestClient_ApplyClientConfig(t *testing.T) {
 		MessageIds: []string{"1"},
 	}, nil)
 
-	topic, err := c.TopicAdminClient.CreateTopic(ctx, &pb.Topic{Name: "t"})
+	topic, err := c.TopicAdminClient.CreateTopic(ctx, &pb.Topic{Name: "projects/P/topics/t"})
 	if err != nil {
 		t.Fatal(err)
 	}

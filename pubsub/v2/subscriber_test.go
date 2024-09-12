@@ -207,10 +207,12 @@ func TestExactlyOnceDelivery_AckRetryDeadlineExceeded(t *testing.T) {
 	defer client.Close()
 	defer srv.Close()
 
-	topic := mustCreateTopic(t, client, "t")
+	topicName := fmt.Sprintf("projects/%s/topics/t", projName)
+	subName := fmt.Sprintf("projects/%s/subscriptions/s", subID)
+	topic := mustCreateTopic(t, client, topicName)
 	s := mustCreateSubConfig(t, client, &pb.Subscription{
-		Name:                      "s",
-		Topic:                     "t",
+		Name:                      subName,
+		Topic:                     topicName,
 		EnableExactlyOnceDelivery: true,
 	})
 	r := topic.Publish(ctx, &Message{
@@ -295,10 +297,12 @@ func TestExactlyOnceDelivery_ReceiptModackError(t *testing.T) {
 	defer client.Close()
 	defer srv.Close()
 
-	publisher := mustCreateTopic(t, client, "t")
+	topicName := fmt.Sprintf("projects/%s/topics/t", projName)
+	subName := fmt.Sprintf("projects/%s/subscriptions/s", subID)
+	publisher := mustCreateTopic(t, client, topicName)
 	s := mustCreateSubConfig(t, client, &pb.Subscription{
-		Name:                      "s",
-		Topic:                     "t",
+		Name:                      subName,
+		Topic:                     topicName,
 		EnableExactlyOnceDelivery: true,
 	})
 	r := publisher.Publish(ctx, &Message{

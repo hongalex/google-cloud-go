@@ -50,11 +50,13 @@ func TestStreamTimeout(t *testing.T) {
 	}
 	defer client.Close()
 
-	pbt, err := client.TopicAdminClient.CreateTopic(ctx, &pb.Topic{Name: "t"})
+	pbt, err := client.TopicAdminClient.CreateTopic(ctx, &pb.Topic{Name: "projects/P/topics/t"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	pbs, err := client.SubscriptionAdminClient.CreateSubscription(ctx, &pb.Subscription{Name: "sub", Topic: pbt.Name})
+	pbs, err := client.SubscriptionAdminClient.CreateSubscription(
+		ctx,
+		&pb.Subscription{Name: "projects/P/subscriptions/sub", Topic: pbt.Name})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -165,13 +165,13 @@ func (c *Client) Publisher(topicNameOrID string) *Publisher {
 	s := strings.Split(topicNameOrID, "/")
 	// The string looks like a properly formatted topic name, use it directly.
 	if len(s) == 4 {
-		return newTopic(c, topicNameOrID)
+		return newPublisher(c, topicNameOrID)
 	}
 	// In all other cases, treat the string as the topicID, even if misformatted.
-	return newTopic(c, fmt.Sprintf("projects/%s/topics:%s", c.projectID, topicNameOrID))
+	return newPublisher(c, fmt.Sprintf("projects/%s/topics/%s", c.projectID, topicNameOrID))
 }
 
-func newTopic(c *Client, name string) *Publisher {
+func newPublisher(c *Client, name string) *Publisher {
 	return &Publisher{
 		c:               c,
 		name:            name,

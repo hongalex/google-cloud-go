@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -33,14 +34,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func TestTopicID(t *testing.T) {
+func TestPublisherID(t *testing.T) {
 	const id = "id"
 	c, srv := newFake(t)
 	defer c.Close()
 	defer srv.Close()
 
-	s := c.Publisher(id)
-	if got, want := s.ID(), id; got != want {
+	p := c.Publisher(id)
+	if got, want := p.ID(), id; got != want {
 		t.Errorf("Topic.ID() = %q; want %q", got, want)
 	}
 }
@@ -207,7 +208,8 @@ func TestPublishFlowControl_SignalError(t *testing.T) {
 	defer c.Close()
 	defer srv.Close()
 
-	publisher := mustCreateTopic(t, c, "fc-error-topic")
+	topicName := fmt.Sprintf("projects/P/topics/fc-error-topic")
+	publisher := mustCreateTopic(t, c, topicName)
 	fc := FlowControlSettings{
 		MaxOutstandingMessages: 1,
 		MaxOutstandingBytes:    10,
@@ -264,7 +266,8 @@ func TestPublishFlowControl_SignalErrorOrderingKey(t *testing.T) {
 	defer c.Close()
 	defer srv.Close()
 
-	publisher := mustCreateTopic(t, c, "fc-error-ordering-topic")
+	topicName := fmt.Sprintf("projects/p/topics/%s", "fc-error-ordering-topic")
+	publisher := mustCreateTopic(t, c, topicName)
 	fc := FlowControlSettings{
 		MaxOutstandingMessages: 1,
 		MaxOutstandingBytes:    10,
@@ -417,7 +420,8 @@ func TestPublishCompression(t *testing.T) {
 	defer client.Close()
 	defer srv.Close()
 
-	publisher := mustCreateTopic(t, client, "topic-compression")
+	topic := fmt.Sprintf("projects/%s/topics/topic-compression", testutil.ProjID())
+	publisher := mustCreateTopic(t, client, topic)
 	defer publisher.Stop()
 
 	publisher.PublishSettings.EnableCompression = true

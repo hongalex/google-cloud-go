@@ -165,8 +165,8 @@ func TestTrace_PublishSpan(t *testing.T) {
 			},
 		},
 	}
-
-	publisher := mustCreateTopic(t, c, topicID)
+	topicName := fmt.Sprintf("projects/%s/topics/%s", testutil.ProjID(), topicID)
+	publisher := mustCreateTopic(t, c, topicName)
 	defer publisher.Stop()
 	if m.OrderingKey != "" {
 		publisher.EnableMessageOrdering = true
@@ -201,8 +201,8 @@ func TestTrace_PublishSpanError(t *testing.T) {
 	}
 
 	topicID := "t"
-
-	publisher := mustCreateTopic(t, c, topicID)
+	topicName := fmt.Sprintf("projects/%s/topics/%s", testutil.ProjID(), topicID)
+	publisher := mustCreateTopic(t, c, topicName)
 
 	// Publishing a message with an ordering key without enabling ordering topic ordering
 	// should fail.
@@ -293,15 +293,16 @@ func TestTrace_SubscribeSpans(t *testing.T) {
 	}
 
 	topicID := "t"
-
-	publisher := mustCreateTopic(t, c, topicID)
+	topicName := fmt.Sprintf("projects/%s/topics/%s", testutil.ProjID(), topicID)
+	publisher := mustCreateTopic(t, c, topicName)
 
 	subID := "s"
+	subName := fmt.Sprintf("projects/%s/subscriptions/%s", testutil.ProjID(), subID)
 	enableEOS := false
 
 	pbs, err := c.SubscriptionAdminClient.CreateSubscription(ctx, &pb.Subscription{
-		Name:                      subID,
-		Topic:                     publisher.String(),
+		Name:                      subName,
+		Topic:                     topicName,
 		EnableExactlyOnceDelivery: enableEOS,
 	})
 	if err != nil {

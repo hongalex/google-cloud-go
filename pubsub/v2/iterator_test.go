@@ -39,10 +39,10 @@ import (
 
 var (
 	projName                = "P"
-	topicName               = "some-topic"
-	subName                 = "some-sub"
-	fullyQualifiedTopicName = fmt.Sprintf("projects/%s/topics/%s", projName, topicName)
-	fullyQualifiedSubName   = fmt.Sprintf("projects/%s/subscriptions/%s", projName, subName)
+	topicID                 = "some-topic"
+	subID                   = "some-sub"
+	fullyQualifiedTopicName = fmt.Sprintf("projects/%s/topics/%s", projName, topicID)
+	fullyQualifiedSubName   = fmt.Sprintf("projects/%s/subscriptions/%s", projName, subID)
 )
 
 func TestMakeBatches(t *testing.T) {
@@ -342,9 +342,10 @@ func initConn(ctx context.Context, addr string) (*Subscriber, *Client, error) {
 		return nil, nil, err
 	}
 
+	fullyQualifiedSubName := fmt.Sprintf("projects/p/subscriptions/sub-%d", time.Now().UnixNano())
 	s, err := client.SubscriptionAdminClient.CreateSubscription(ctx, &pb.Subscription{
-		Name:  fmt.Sprintf("sub-%d", time.Now().UnixNano()),
-		Topic: topicName,
+		Name:  fullyQualifiedSubName,
+		Topic: fullyQualifiedTopicName,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -511,8 +512,8 @@ func TestIterator_StreamingPullExactlyOnce(t *testing.T) {
 	}
 
 	pbs := &pb.Subscription{
-		Name:                      subName,
-		Topic:                     topicName,
+		Name:                      fullyQualifiedSubName,
+		Topic:                     fullyQualifiedTopicName,
 		EnableMessageOrdering:     true,
 		EnableExactlyOnceDelivery: true,
 	}
@@ -582,7 +583,7 @@ func TestPingStreamAckDeadline(t *testing.T) {
 
 	srv.Publish(fullyQualifiedTopicName, []byte("creating a topic"), nil)
 	s, err := c.SubscriptionAdminClient.CreateSubscription(ctx, &pb.Subscription{
-		Name:  subName,
+		Name:  fullyQualifiedSubName,
 		Topic: fullyQualifiedTopicName,
 	})
 	if err != nil {
