@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/internal/testutil"
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )

@@ -25,7 +25,7 @@ import (
 	"os"
 	"strings"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	pb "cloud.google.com/go/pubsub/v2/internal/benchwrapper/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
