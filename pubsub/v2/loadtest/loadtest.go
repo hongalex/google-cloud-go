@@ -30,13 +30,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"cloud.google.com/go/pubsub"
-	pb "cloud.google.com/go/pubsub/loadtest/pb"
+	"cloud.google.com/go/pubsub/v2"
+	pb "cloud.google.com/go/pubsub/v2/loadtest/pb"
 	"golang.org/x/time/rate"
 )
 
 type pubServerConfig struct {
-	topic     *pubsub.Topic
+	topic     *pubsub.Publisher
 	msgData   []byte
 	batchSize int32
 	ordered   bool
@@ -64,7 +64,7 @@ func (l *PubServer) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartR
 }
 
 func (l *PubServer) init(c *pubsub.Client, topicName string, msgSize, batchSize int32, batchDur time.Duration, ordered bool) {
-	topic := c.Topic(topicName)
+	topic := c.Publisher(topicName)
 	topic.PublishSettings = pubsub.PublishSettings{
 		DelayThreshold:    batchDur,
 		CountThreshold:    950,
@@ -150,7 +150,7 @@ func (s *SubServer) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartR
 
 	// Load test API doesn't define any way to stop right now.
 	go func() {
-		sub := c.Subscription(req.GetPubsubOptions().Subscription)
+		sub := c.Subscriber(req.GetPubsubOptions().Subscription)
 		sub.ReceiveSettings.NumGoroutines = 10 * runtime.GOMAXPROCS(0)
 		err := sub.Receive(context.Background(), s.callback)
 		log.Fatal(err)
@@ -184,8 +184,8 @@ func (s *SubServer) callback(_ context.Context, m *pubsub.Message) {
 
 	latency := time.Now().UnixNano()/1e6 - sendTimeMillis
 	ident := &pb.MessageIdentifier{
-		PublisherClientId: id,
-		SequenceNumber:    int32(seqNum),
+		TopicAdminClientId: id,
+		SequenceNumber:     int32(seqNum),
 	}
 
 	s.mu.Lock()

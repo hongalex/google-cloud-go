@@ -158,7 +158,7 @@ set MaxExtension to the subscription's AckDeadline:
 
 For use cases where message processing exceeds 30 minutes, we recommend using
 the base client in a pull model, since long-lived streams are periodically killed
-by firewalls. See the example at https://godoc.org/cloud.google.com/go/pubsub/apiv1#example-SubscriberClient-Pull-LengthyClientProcessing
+by firewalls. See the example at https://godoc.org/cloud.google.com/go/pubsub/v2/apiv1#example-SubscriptionAdminClient-Pull-LengthyClientProcessing
 
 # Emulator
 

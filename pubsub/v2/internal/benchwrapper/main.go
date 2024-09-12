@@ -26,7 +26,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/pubsub"
-	pb "cloud.google.com/go/pubsub/internal/benchwrapper/proto"
+	pb "cloud.google.com/go/pubsub/v2/internal/benchwrapper/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 )

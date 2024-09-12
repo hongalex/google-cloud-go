@@ -409,7 +409,7 @@ type MessageIdentifier struct {
 	unknownFields protoimpl.UnknownFields
 
 	// The unique id of the client that published the message.
-	PublisherClientId int64 `protobuf:"varint,1,opt,name=publisher_client_id,json=publisherClientId,proto3" json:"publisher_client_id,omitempty"`
+	TopicAdminClientId int64 `protobuf:"varint,1,opt,name=publisher_client_id,json=publisherClientId,proto3" json:"publisher_client_id,omitempty"`
 	// Sequence number of the published message with the given publish_client_id.
 	SequenceNumber int32 `protobuf:"varint,2,opt,name=sequence_number,json=sequenceNumber,proto3" json:"sequence_number,omitempty"`
 }
@@ -446,9 +446,9 @@ func (*MessageIdentifier) Descriptor() ([]byte, []int) {
 	return file_loadtest_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *MessageIdentifier) GetPublisherClientId() int64 {
+func (x *MessageIdentifier) GetTopicAdminClientId() int64 {
 	if x != nil {
-		return x.PublisherClientId
+		return x.TopicAdminClientId
 	}
 	return 0
 }

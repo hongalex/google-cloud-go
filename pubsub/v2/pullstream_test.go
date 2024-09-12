@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/internal/testutil"
-	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
-	"cloud.google.com/go/pubsub/pstest"
+	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	"cloud.google.com/go/pubsub/v2/pstest"
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -59,7 +59,7 @@ func TestPullStreamGet(t *testing.T) {
 			wantCode: codes.OK,
 		},
 	} {
-		streamingPull := func(context.Context, ...gax.CallOption) (pb.Subscriber_StreamingPullClient, error) {
+		streamingPull := func(context.Context, ...gax.CallOption) (pb.SubscriptionAdmin_StreamingPullClient, error) {
 			if len(test.errors) == 0 {
 				panic("out of errors")
 			}
@@ -88,8 +88,8 @@ func TestPullStreamGet_ResourceUnavailable(t *testing.T) {
 	defer ps.Close()
 
 	s := ExhaustedServer{&ps.GServer}
-	pb.RegisterPublisherServer(srv.Gsrv, &s)
-	pb.RegisterSubscriberServer(srv.Gsrv, &s)
+	pb.RegisterTopicAdminServer(srv.Gsrv, &s)
+	pb.RegisterSubscriptionAdminServer(srv.Gsrv, &s)
 	srv.Start()
 
 	opts := withGRPCHeadersAssertion(t,
@@ -101,17 +101,20 @@ func TestPullStreamGet_ResourceUnavailable(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	topic, err := client.CreateTopic(ctx, "foo")
+
+	topic, err := client.TopicAdminClient.CreateTopic(ctx, &pb.Topic{Name: "foo"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	sub, err := client.CreateSubscription(ctx, "foo", SubscriptionConfig{
-		Topic: topic,
+	pbs, err := client.SubscriptionAdminClient.CreateSubscription(ctx, &pb.Subscription{
+		Name:  "bar",
+		Topic: topic.Name,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	sub := client.Subscriber(pbs.Name)
 	errc := make(chan error)
 	go func() {
 		errc <- sub.Receive(ctx, func(context.Context, *Message) {
@@ -137,12 +140,12 @@ type ExhaustedServer struct {
 	*pstest.GServer
 }
 
-func (*ExhaustedServer) StreamingPull(_ pb.Subscriber_StreamingPullServer) error {
+func (*ExhaustedServer) StreamingPull(_ pb.SubscriptionAdmin_StreamingPullServer) error {
 	return status.Errorf(codes.ResourceExhausted, "This server is exhausted!")
 }
 
 type testStreamingPullClient struct {
-	pb.Subscriber_StreamingPullClient
+	pb.SubscriptionAdmin_StreamingPullClient
 	sendError error
 }
 

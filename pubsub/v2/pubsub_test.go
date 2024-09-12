@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	vkit "cloud.google.com/go/pubsub/apiv1"
-	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
-	"cloud.google.com/go/pubsub/pstest"
+	vkit "cloud.google.com/go/pubsub/v2/apiv1"
+	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	"cloud.google.com/go/pubsub/v2/pstest"
 	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -33,7 +33,7 @@ func TestClient_ApplyClientConfig(t *testing.T) {
 	ctx := context.Background()
 	srv := pstest.NewServer()
 	// Add a retry for an obscure error.
-	pco := &vkit.PublisherCallOptions{
+	pco := &vkit.TopicAdminCallOptions{
 		Publish: []gax.CallOption{
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
@@ -47,7 +47,7 @@ func TestClient_ApplyClientConfig(t *testing.T) {
 		},
 	}
 	c, err := NewClientWithConfig(ctx, "P", &ClientConfig{
-		PublisherCallOptions: pco,
+		TopicAdminCallOptions: pco,
 	},
 		option.WithEndpoint(srv.Addr),
 		option.WithoutAuthentication(),
@@ -66,11 +66,12 @@ func TestClient_ApplyClientConfig(t *testing.T) {
 		MessageIds: []string{"1"},
 	}, nil)
 
-	topic, err := c.CreateTopic(ctx, "t")
+	topic, err := c.TopicAdminClient.CreateTopic(ctx, &pb.Topic{Name: "projects/P/topics/t"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	res := topic.Publish(ctx, &Message{
+	publisher := c.Publisher(topic.Name)
+	res := publisher.Publish(ctx, &Message{
 		Data: []byte("test"),
 	})
 	if id, err := res.Get(ctx); err != nil {

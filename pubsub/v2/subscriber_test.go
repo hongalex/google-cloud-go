@@ -22,260 +22,14 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/internal/testutil"
-	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
-	"cloud.google.com/go/pubsub/pstest"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"google.golang.org/api/iterator"
+	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	"cloud.google.com/go/pubsub/v2/pstest"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-// All returns the remaining subscriptions from this iterator.
-func slurpSubs(it *SubscriptionIterator) ([]*Subscription, error) {
-	var subs []*Subscription
-	for {
-		switch sub, err := it.Next(); err {
-		case nil:
-			subs = append(subs, sub)
-		case iterator.Done:
-			return subs, nil
-		default:
-			return nil, err
-		}
-	}
-}
-
-func TestSubscriptionID(t *testing.T) {
-	const id = "id"
-	c := &Client{projectID: "projid"}
-	s := c.Subscription(id)
-	if got, want := s.ID(), id; got != want {
-		t.Errorf("Subscription.ID() = %q; want %q", got, want)
-	}
-}
-
-func TestListProjectSubscriptions(t *testing.T) {
-	ctx := context.Background()
-	c, srv := newFake(t)
-	defer c.Close()
-	defer srv.Close()
-
-	topic := mustCreateTopic(t, c, "t")
-	var want []string
-	for i := 1; i <= 2; i++ {
-		id := fmt.Sprintf("s%d", i)
-		want = append(want, id)
-		_, err := c.CreateSubscription(ctx, id, SubscriptionConfig{Topic: topic})
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	subs, err := slurpSubs(c.Subscriptions(ctx))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got := getSubIDs(subs)
-	if !testutil.Equal(got, want) {
-		t.Errorf("got %v, want %v", got, want)
-	}
-
-	// Call list again, but check the config this time.
-	it := c.Subscriptions(ctx)
-	i := 1
-	for {
-		sub, err := it.NextConfig()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			t.Errorf("SubscriptionIterator.NextConfig() got err: %v", err)
-		}
-		if got := sub.Topic.ID(); got != topic.ID() {
-			t.Errorf("subConfig.Topic mismatch, got: %v, want: %v", got, topic.ID())
-		}
-
-		want := fmt.Sprintf("s%d", i)
-		if got := sub.ID(); got != want {
-			t.Errorf("sub.ID() mismatch: got %s, want: %s", got, want)
-		}
-		want = fmt.Sprintf("projects/P/subscriptions/s%d", i)
-		if got := sub.String(); got != want {
-			t.Errorf("sub.String() mismatch: got %s, want: %s", got, want)
-		}
-		i++
-	}
-}
-
-func getSubIDs(subs []*Subscription) []string {
-	var names []string
-	for _, sub := range subs {
-		names = append(names, sub.ID())
-	}
-	return names
-}
-
-func TestListTopicSubscriptions(t *testing.T) {
-	ctx := context.Background()
-	c, srv := newFake(t)
-	defer c.Close()
-	defer srv.Close()
-
-	topics := []*Topic{
-		mustCreateTopic(t, c, "t0"),
-		mustCreateTopic(t, c, "t1"),
-	}
-	wants := make([][]string, 2)
-	for i := 0; i < 5; i++ {
-		id := fmt.Sprintf("s%d", i)
-		sub, err := c.CreateSubscription(ctx, id, SubscriptionConfig{Topic: topics[i%2]})
-		if err != nil {
-			t.Fatal(err)
-		}
-		wants[i%2] = append(wants[i%2], sub.ID())
-	}
-
-	for i, topic := range topics {
-		subs, err := slurpSubs(topic.Subscriptions(ctx))
-		if err != nil {
-			t.Fatal(err)
-		}
-		got := getSubIDs(subs)
-		if !testutil.Equal(got, wants[i]) {
-			t.Errorf("#%d: got %v, want %v", i, got, wants[i])
-		}
-	}
-}
-
-const defaultRetentionDuration = 168 * time.Hour
-
-func TestSubscriptionConfig(t *testing.T) {
-	ctx := context.Background()
-	client, srv := newFake(t)
-	defer client.Close()
-	defer srv.Close()
-
-	topic := mustCreateTopic(t, client, "t")
-	sub, err := client.CreateSubscription(ctx, "s", SubscriptionConfig{
-		Topic:            topic,
-		ExpirationPolicy: 30 * time.Hour,
-		PushConfig: PushConfig{
-			Endpoint: "https://example.com/push",
-			AuthenticationMethod: &OIDCToken{
-				ServiceAccountEmail: "foo@example.com",
-				Audience:            "client-12345",
-			},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := sub.Config(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := SubscriptionConfig{
-		Topic:               topic,
-		AckDeadline:         10 * time.Second,
-		RetainAckedMessages: false,
-		RetentionDuration:   defaultRetentionDuration,
-		ExpirationPolicy:    30 * time.Hour,
-		PushConfig: PushConfig{
-			Endpoint: "https://example.com/push",
-			AuthenticationMethod: &OIDCToken{
-				ServiceAccountEmail: "foo@example.com",
-				Audience:            "client-12345",
-			},
-			Wrapper: &PubsubWrapper{},
-		},
-		EnableExactlyOnceDelivery: false,
-		State:                     SubscriptionStateActive,
-	}
-	opt := cmpopts.IgnoreUnexported(SubscriptionConfig{})
-	if diff := testutil.Diff(cfg, want, opt); diff != "" {
-		t.Fatalf("compare subscription config mismatch, -got, +want\n%s", diff)
-	}
-
-	got, err := sub.Update(ctx, SubscriptionConfigToUpdate{
-		AckDeadline:         20 * time.Second,
-		RetainAckedMessages: true,
-		Labels:              map[string]string{"label": "value"},
-		ExpirationPolicy:    72 * time.Hour,
-		PushConfig: &PushConfig{
-			Endpoint: "https://example2.com/push",
-			AuthenticationMethod: &OIDCToken{
-				ServiceAccountEmail: "bar@example.com",
-				Audience:            "client-98765",
-			},
-			Wrapper: &NoWrapper{
-				WriteMetadata: true,
-			},
-		},
-		EnableExactlyOnceDelivery: true,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	want = SubscriptionConfig{
-		Topic:               topic,
-		AckDeadline:         20 * time.Second,
-		RetainAckedMessages: true,
-		RetentionDuration:   defaultRetentionDuration,
-		Labels:              map[string]string{"label": "value"},
-		ExpirationPolicy:    72 * time.Hour,
-		PushConfig: PushConfig{
-			Endpoint: "https://example2.com/push",
-			AuthenticationMethod: &OIDCToken{
-				ServiceAccountEmail: "bar@example.com",
-				Audience:            "client-98765",
-			},
-			Wrapper: &NoWrapper{
-				WriteMetadata: true,
-			},
-		},
-		EnableExactlyOnceDelivery: true,
-		State:                     SubscriptionStateActive,
-	}
-	if diff := testutil.Diff(got, want, opt); diff != "" {
-		t.Fatalf("compare subscription config mismatch, -got, +want\n%s", diff)
-	}
-
-	got, err = sub.Update(ctx, SubscriptionConfigToUpdate{
-		RetentionDuration: 2 * time.Hour,
-		Labels:            map[string]string{},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	want.RetentionDuration = 2 * time.Hour
-	want.Labels = nil
-	if diff := testutil.Diff(got, want, opt); diff != "" {
-		t.Fatalf("compare subscription config mismatch, -got, +want\n%s", diff)
-	}
-
-	_, err = sub.Update(ctx, SubscriptionConfigToUpdate{})
-	if err == nil {
-		t.Fatal("got nil, want error")
-	}
-
-	// Check ExpirationPolicy when set to never expire.
-	got, err = sub.Update(ctx, SubscriptionConfigToUpdate{
-		ExpirationPolicy: time.Duration(0),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	want.ExpirationPolicy = time.Duration(0)
-	if diff := testutil.Diff(got, want, opt); diff != "" {
-		t.Fatalf("compare subscription config mismatch, -got, +want\n%s", diff)
-	}
-}
 
 func TestReceive(t *testing.T) {
 	testReceive(t, true, false)
@@ -291,16 +45,15 @@ func testReceive(t *testing.T, synchronous, exactlyOnceDelivery bool) {
 		defer client.Close()
 		defer srv.Close()
 
-		topic := mustCreateTopic(t, client, "t")
-		sub, err := client.CreateSubscription(ctx, "s", SubscriptionConfig{
-			Topic:                     topic,
+		topicName := "projects/p/topics/t"
+		mustCreateTopic(t, client, topicName)
+		sub := mustCreateSubConfig(t, client, &pb.Subscription{
+			Name:                      "projects/p/subscriptions/s",
+			Topic:                     topicName,
 			EnableExactlyOnceDelivery: exactlyOnceDelivery,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
 		for i := 0; i < 256; i++ {
-			srv.Publish(topic.name, []byte{byte(i)}, nil)
+			srv.Publish(topicName, []byte{byte(i)}, nil)
 		}
 		sub.ReceiveSettings.Synchronous = synchronous
 		msgs, err := pullN(ctx, sub, 256, 0, func(_ context.Context, m *Message) {
@@ -333,7 +86,7 @@ func testReceive(t *testing.T, synchronous, exactlyOnceDelivery bool) {
 	})
 }
 
-func (t1 *Topic) Equal(t2 *Topic) bool {
+func (t1 *Publisher) Equal(t2 *Publisher) bool {
 	if t1 == nil && t2 == nil {
 		return true
 	}
@@ -359,221 +112,6 @@ func newFake(t *testing.T) (*Client, *pstest.Server) {
 	return client, srv
 }
 
-func TestPushConfigAuthenticationMethod_toProto(t *testing.T) {
-	in := &PushConfig{
-		Endpoint: "https://example.com/push",
-		AuthenticationMethod: &OIDCToken{
-			ServiceAccountEmail: "foo@example.com",
-			Audience:            "client-12345",
-		},
-	}
-	got := in.toProto()
-	want := &pb.PushConfig{
-		PushEndpoint: "https://example.com/push",
-		AuthenticationMethod: &pb.PushConfig_OidcToken_{
-			OidcToken: &pb.PushConfig_OidcToken{
-				ServiceAccountEmail: "foo@example.com",
-				Audience:            "client-12345",
-			},
-		},
-	}
-	if diff := testutil.Diff(got, want); diff != "" {
-		t.Errorf("Roundtrip to Proto failed\ngot: - want: +\n%s", diff)
-	}
-}
-
-func TestDeadLettering_toProto(t *testing.T) {
-	in := &DeadLetterPolicy{
-		MaxDeliveryAttempts: 10,
-		DeadLetterTopic:     "projects/p/topics/t",
-	}
-	got := in.toProto()
-	want := &pb.DeadLetterPolicy{
-		DeadLetterTopic:     "projects/p/topics/t",
-		MaxDeliveryAttempts: 10,
-	}
-	if diff := testutil.Diff(got, want); diff != "" {
-		t.Errorf("Roundtrip to Proto failed\ngot: - want: +\n%s", diff)
-	}
-}
-
-// Check if incoming ReceivedMessages are properly converted to Message structs
-// that expose the DeliveryAttempt field when dead lettering is enabled/disabled.
-func TestDeadLettering_toMessage(t *testing.T) {
-	// If dead lettering is disabled, DeliveryAttempt should default to 0.
-	receivedMsg := &pb.ReceivedMessage{
-		AckId: "1234",
-		Message: &pb.PubsubMessage{
-			Data:        []byte("some message"),
-			MessageId:   "id-1234",
-			PublishTime: timestamppb.Now(),
-		},
-	}
-	got, err := toMessage(receivedMsg, time.Time{}, nil)
-	if err != nil {
-		t.Errorf("toMessage failed: %v", err)
-	}
-	if got.DeliveryAttempt != nil {
-		t.Errorf("toMessage with dead-lettering disabled failed\ngot: %d, want nil", *got.DeliveryAttempt)
-	}
-
-	// If dead lettering is enabled, toMessage should properly pass through the DeliveryAttempt field.
-	receivedMsg.DeliveryAttempt = 10
-	got, err = toMessage(receivedMsg, time.Time{}, nil)
-	if err != nil {
-		t.Errorf("toMessage failed: %v", err)
-	}
-	if *got.DeliveryAttempt != int(receivedMsg.DeliveryAttempt) {
-		t.Errorf("toMessage with dead-lettered enabled failed\ngot: %d, want %d", *got.DeliveryAttempt, receivedMsg.DeliveryAttempt)
-	}
-}
-
-func TestRetryPolicy_toProto(t *testing.T) {
-	in := &RetryPolicy{
-		MinimumBackoff: 20 * time.Second,
-		MaximumBackoff: 300 * time.Second,
-	}
-	got := in.toProto()
-	want := &pb.RetryPolicy{
-		MinimumBackoff: durationpb.New(20 * time.Second),
-		MaximumBackoff: durationpb.New(300 * time.Second),
-	}
-	if diff := testutil.Diff(got, want); diff != "" {
-		t.Errorf("Roundtrip to Proto failed\ngot: - want: +\n%s", diff)
-	}
-}
-
-func TestOrdering_CreateSubscription(t *testing.T) {
-	ctx := context.Background()
-	client, srv := newFake(t)
-	defer client.Close()
-	defer srv.Close()
-
-	topic := mustCreateTopic(t, client, "t")
-	subConfig := SubscriptionConfig{
-		Topic:                 topic,
-		EnableMessageOrdering: true,
-	}
-	orderSub, err := client.CreateSubscription(ctx, "s", subConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := orderSub.Config(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !cfg.EnableMessageOrdering {
-		t.Fatalf("Expected EnableMessageOrdering to be true in %s", orderSub.String())
-	}
-
-	// Test cancellation works as intended with ordering enabled.
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	orderSub.Receive(ctx, func(ctx context.Context, msg *Message) {
-		msg.Ack()
-	})
-}
-
-func TestBigQuerySubscription(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	client, srv := newFake(t)
-	defer client.Close()
-	defer srv.Close()
-
-	topic := mustCreateTopic(t, client, "t")
-	bqTable := "some-project:some-dataset.some-table"
-	bqConfig := BigQueryConfig{
-		Table: bqTable,
-	}
-
-	subConfig := SubscriptionConfig{
-		Topic:          topic,
-		BigQueryConfig: bqConfig,
-	}
-	bqSub, err := client.CreateSubscription(ctx, "s", subConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := bqSub.Config(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	want := bqConfig
-	want.State = BigQueryConfigActive
-	if diff := testutil.Diff(cfg.BigQueryConfig, want); diff != "" {
-		t.Fatalf("CreateBQSubscription mismatch: \n%s", diff)
-	}
-}
-
-func TestCloudStorageSubscription(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	client, srv := newFake(t)
-	defer client.Close()
-	defer srv.Close()
-
-	topic := mustCreateTopic(t, client, "t")
-	bucket := "fake-bucket"
-	csCfg := CloudStorageConfig{
-		Bucket:         bucket,
-		FilenamePrefix: "some-prefix",
-		FilenameSuffix: "some-suffix",
-		OutputFormat: &CloudStorageOutputFormatAvroConfig{
-			WriteMetadata: true,
-		},
-		MaxDuration: 10 * time.Minute,
-		MaxBytes:    10e5,
-	}
-
-	subConfig := SubscriptionConfig{
-		Topic:              topic,
-		CloudStorageConfig: csCfg,
-	}
-	csSub, err := client.CreateSubscription(ctx, "s", subConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := csSub.Config(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	want := csCfg
-	want.State = CloudStorageConfigActive
-	if diff := testutil.Diff(cfg.CloudStorageConfig, want); diff != "" {
-		t.Fatalf("create cloud storage subscription mismatch: \n%s", diff)
-	}
-
-	csCfg.OutputFormat = &CloudStorageOutputFormatTextConfig{}
-	cfg, err = csSub.Update(ctx, SubscriptionConfigToUpdate{
-		CloudStorageConfig: &csCfg,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := cfg.CloudStorageConfig
-	want = csCfg
-	want.State = CloudStorageConfigActive
-	if diff := testutil.Diff(got, want); diff != "" {
-		t.Fatalf("update cloud storage subscription mismatch: \n%s", diff)
-	}
-
-	// Test resetting to a pull based subscription.
-	cfg, err = csSub.Update(ctx, SubscriptionConfigToUpdate{
-		CloudStorageConfig: &CloudStorageConfig{},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	got = cfg.CloudStorageConfig
-	want = CloudStorageConfig{}
-	if diff := testutil.Diff(got, want); diff != "" {
-		t.Fatalf("remove cloud storage subscription mismatch: \n%s", diff)
-	}
-}
-
 func TestExactlyOnceDelivery_AckSuccess(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -582,14 +120,11 @@ func TestExactlyOnceDelivery_AckSuccess(t *testing.T) {
 	defer srv.Close()
 
 	topic := mustCreateTopic(t, client, "t")
-	subConfig := SubscriptionConfig{
-		Topic:                     topic,
+	s := mustCreateSubConfig(t, client, &pb.Subscription{
+		Name:                      "s",
+		Topic:                     "t",
 		EnableExactlyOnceDelivery: true,
-	}
-	s, err := client.CreateSubscription(ctx, "s", subConfig)
-	if err != nil {
-		t.Fatalf("create sub err: %v", err)
-	}
+	})
 	s.ReceiveSettings.NumGoroutines = 1
 	r := topic.Publish(ctx, &Message{
 		Data: []byte("exactly-once-message"),
@@ -598,7 +133,7 @@ func TestExactlyOnceDelivery_AckSuccess(t *testing.T) {
 		t.Fatalf("failed to publish message: %v", err)
 	}
 
-	err = s.Receive(ctx, func(ctx context.Context, msg *Message) {
+	err := s.Receive(ctx, func(ctx context.Context, msg *Message) {
 		ar := msg.AckWithResult()
 		s, err := ar.Get(ctx)
 		if s != AcknowledgeStatusSuccess {
@@ -629,14 +164,12 @@ func TestExactlyOnceDelivery_AckFailureErrorPermissionDenied(t *testing.T) {
 	defer srv.Close()
 
 	topic := mustCreateTopic(t, client, "t")
-	subConfig := SubscriptionConfig{
-		Topic:                     topic,
+
+	s := mustCreateSubConfig(t, client, &pb.Subscription{
+		Name:                      "s",
+		Topic:                     "t",
 		EnableExactlyOnceDelivery: true,
-	}
-	s, err := client.CreateSubscription(ctx, "s", subConfig)
-	if err != nil {
-		t.Fatalf("create sub err: %v", err)
-	}
+	})
 	s.ReceiveSettings.NumGoroutines = 1
 	r := topic.Publish(ctx, &Message{
 		Data: []byte("exactly-once-message"),
@@ -674,15 +207,14 @@ func TestExactlyOnceDelivery_AckRetryDeadlineExceeded(t *testing.T) {
 	defer client.Close()
 	defer srv.Close()
 
-	topic := mustCreateTopic(t, client, "t")
-	subConfig := SubscriptionConfig{
-		Topic:                     topic,
+	topicName := fmt.Sprintf("projects/%s/topics/t", projName)
+	subName := fmt.Sprintf("projects/%s/subscriptions/s", subID)
+	topic := mustCreateTopic(t, client, topicName)
+	s := mustCreateSubConfig(t, client, &pb.Subscription{
+		Name:                      subName,
+		Topic:                     topicName,
 		EnableExactlyOnceDelivery: true,
-	}
-	s, err := client.CreateSubscription(ctx, "s", subConfig)
-	if err != nil {
-		t.Fatalf("create sub err: %v", err)
-	}
+	})
 	r := topic.Publish(ctx, &Message{
 		Data: []byte("exactly-once-message"),
 	})
@@ -720,16 +252,13 @@ func TestExactlyOnceDelivery_NackSuccess(t *testing.T) {
 	defer client.Close()
 	defer srv.Close()
 
-	topic := mustCreateTopic(t, client, "t")
-	subConfig := SubscriptionConfig{
-		Topic:                     topic,
+	publisher := mustCreateTopic(t, client, "t")
+	s := mustCreateSubConfig(t, client, &pb.Subscription{
+		Name:                      "s",
+		Topic:                     "t",
 		EnableExactlyOnceDelivery: true,
-	}
-	s, err := client.CreateSubscription(ctx, "s", subConfig)
-	if err != nil {
-		t.Fatalf("create sub err: %v", err)
-	}
-	r := topic.Publish(ctx, &Message{
+	})
+	r := publisher.Publish(ctx, &Message{
 		Data: []byte("exactly-once-message"),
 	})
 	if _, err := r.Get(ctx); err != nil {
@@ -739,7 +268,7 @@ func TestExactlyOnceDelivery_NackSuccess(t *testing.T) {
 	s.ReceiveSettings = ReceiveSettings{
 		NumGoroutines: 1,
 	}
-	err = s.Receive(ctx, func(ctx context.Context, msg *Message) {
+	err := s.Receive(ctx, func(ctx context.Context, msg *Message) {
 		ar := msg.NackWithResult()
 		s, err := ar.Get(context.Background())
 		if s != AcknowledgeStatusSuccess {
@@ -768,16 +297,15 @@ func TestExactlyOnceDelivery_ReceiptModackError(t *testing.T) {
 	defer client.Close()
 	defer srv.Close()
 
-	topic := mustCreateTopic(t, client, "t")
-	subConfig := SubscriptionConfig{
-		Topic:                     topic,
+	topicName := fmt.Sprintf("projects/%s/topics/t", projName)
+	subName := fmt.Sprintf("projects/%s/subscriptions/s", subID)
+	publisher := mustCreateTopic(t, client, topicName)
+	s := mustCreateSubConfig(t, client, &pb.Subscription{
+		Name:                      subName,
+		Topic:                     topicName,
 		EnableExactlyOnceDelivery: true,
-	}
-	s, err := client.CreateSubscription(ctx, "s", subConfig)
-	if err != nil {
-		t.Fatalf("create sub err: %v", err)
-	}
-	r := topic.Publish(ctx, &Message{
+	})
+	r := publisher.Publish(ctx, &Message{
 		Data: []byte("exactly-once-message"),
 	})
 	if _, err := r.Get(ctx); err != nil {
@@ -798,20 +326,17 @@ func TestSubscribeMessageExpirationFlowControl(t *testing.T) {
 	defer client.Close()
 	defer srv.Close()
 
-	topic := mustCreateTopic(t, client, "t")
-	subConfig := SubscriptionConfig{
-		Topic: topic,
-	}
-	s, err := client.CreateSubscription(ctx, "s", subConfig)
-	if err != nil {
-		t.Fatalf("create sub err: %v", err)
-	}
+	publisher := mustCreateTopic(t, client, "t")
+	s := mustCreateSubConfig(t, client, &pb.Subscription{
+		Name:  "s",
+		Topic: "t",
+	})
 
 	s.ReceiveSettings.NumGoroutines = 1
 	s.ReceiveSettings.MaxOutstandingMessages = 1
 	s.ReceiveSettings.MaxExtension = 10 * time.Second
 	s.ReceiveSettings.MaxExtensionPeriod = 10 * time.Second
-	r := topic.Publish(ctx, &Message{
+	r := publisher.Publish(ctx, &Message{
 		Data: []byte("redelivered-message"),
 	})
 	if _, err := r.Get(ctx); err != nil {
@@ -821,7 +346,7 @@ func TestSubscribeMessageExpirationFlowControl(t *testing.T) {
 	deliveryCount := 0
 	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	err = s.Receive(ctx, func(ctx context.Context, msg *Message) {
+	err := s.Receive(ctx, func(ctx context.Context, msg *Message) {
 		// Only acknowledge the message on the 2nd invocation of the callback (2nd delivery).
 		if deliveryCount == 1 {
 			msg.Ack()
@@ -838,4 +363,12 @@ func TestSubscribeMessageExpirationFlowControl(t *testing.T) {
 	if err != nil && !errors.Is(err, context.Canceled) {
 		t.Fatalf("s.Receive err: %v", err)
 	}
+}
+
+func mustCreateSubConfig(t *testing.T, c *Client, pbs *pb.Subscription) *Subscriber {
+	ctx := context.Background()
+	if _, err := c.SubscriptionAdminClient.CreateSubscription(ctx, pbs); err != nil {
+		t.Fatal(err)
+	}
+	return c.Subscriber(pbs.Name)
 }

@@ -20,8 +20,7 @@ import (
 	"log"
 	"sync"
 
-	pb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
-	"cloud.google.com/go/pubsub/internal"
+	"cloud.google.com/go/pubsub/v2/internal"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
@@ -274,42 +273,33 @@ func tracer() trace.Tracer {
 
 var _ propagation.TextMapCarrier = (*messageCarrier)(nil)
 
-// messageCarrier injects and extracts traces from pubsub.Message attributes.
+// messageCarrier injects and extracts traces from a pubsub.Message.
 type messageCarrier struct {
-	attributes map[string]string
+	msg *Message
 }
 
 const googclientPrefix string = "googclient_"
 
 // newMessageCarrier creates a new PubsubMessageCarrier.
 func newMessageCarrier(msg *Message) messageCarrier {
-	return messageCarrier{attributes: msg.Attributes}
-}
-
-// NewMessageCarrierFromPB creates a propagation.TextMapCarrier that can be used to extract the trace
-// context from a protobuf PubsubMessage.
-//
-// Example:
-// ctx = propagation.TraceContext{}.Extract(ctx, pubsub.NewMessageCarrierFromPB(msg))
-func NewMessageCarrierFromPB(msg *pb.PubsubMessage) propagation.TextMapCarrier {
-	return messageCarrier{attributes: msg.Attributes}
+	return messageCarrier{msg: msg}
 }
 
 // Get retrieves a single value for a given key.
 func (c messageCarrier) Get(key string) string {
-	return c.attributes[googclientPrefix+key]
+	return c.msg.Attributes[googclientPrefix+key]
 }
 
 // Set sets an attribute.
 func (c messageCarrier) Set(key, val string) {
-	c.attributes[googclientPrefix+key] = val
+	c.msg.Attributes[googclientPrefix+key] = val
 }
 
 // Keys returns a slice of all keys in the carrier.
 func (c messageCarrier) Keys() []string {
 	i := 0
-	out := make([]string, len(c.attributes))
-	for k := range c.attributes {
+	out := make([]string, len(c.msg.Attributes))
+	for k := range c.msg.Attributes {
 		out[i] = k
 		i++
 	}
