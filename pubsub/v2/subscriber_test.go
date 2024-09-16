@@ -119,14 +119,15 @@ func TestExactlyOnceDelivery_AckSuccess(t *testing.T) {
 	defer client.Close()
 	defer srv.Close()
 
-	topic := mustCreateTopic(t, client, "t")
+	topicName := fmt.Sprintf("projects/%s/topics/t", projName)
+	subName := fmt.Sprintf("projects/%s/subscriptions/s", subID)
+	publisher := mustCreateTopic(t, client, topicName)
 	s := mustCreateSubConfig(t, client, &pb.Subscription{
-		Name:                      "s",
-		Topic:                     "t",
-		EnableExactlyOnceDelivery: true,
+		Name:  subName,
+		Topic: topicName,
 	})
 	s.ReceiveSettings.NumGoroutines = 1
-	r := topic.Publish(ctx, &Message{
+	r := publisher.Publish(ctx, &Message{
 		Data: []byte("exactly-once-message"),
 	})
 	if _, err := r.Get(ctx); err != nil {
@@ -163,15 +164,16 @@ func TestExactlyOnceDelivery_AckFailureErrorPermissionDenied(t *testing.T) {
 	defer client.Close()
 	defer srv.Close()
 
-	topic := mustCreateTopic(t, client, "t")
-
+	topicName := fmt.Sprintf("projects/%s/topics/t", projName)
+	subName := fmt.Sprintf("projects/%s/subscriptions/s", subID)
+	publisher := mustCreateTopic(t, client, topicName)
 	s := mustCreateSubConfig(t, client, &pb.Subscription{
-		Name:                      "s",
-		Topic:                     "t",
+		Name:                      subName,
+		Topic:                     topicName,
 		EnableExactlyOnceDelivery: true,
 	})
 	s.ReceiveSettings.NumGoroutines = 1
-	r := topic.Publish(ctx, &Message{
+	r := publisher.Publish(ctx, &Message{
 		Data: []byte("exactly-once-message"),
 	})
 	if _, err := r.Get(ctx); err != nil {
@@ -252,10 +254,12 @@ func TestExactlyOnceDelivery_NackSuccess(t *testing.T) {
 	defer client.Close()
 	defer srv.Close()
 
-	publisher := mustCreateTopic(t, client, "t")
+	topicName := fmt.Sprintf("projects/%s/topics/t", projName)
+	subName := fmt.Sprintf("projects/%s/subscriptions/s", subID)
+	publisher := mustCreateTopic(t, client, topicName)
 	s := mustCreateSubConfig(t, client, &pb.Subscription{
-		Name:                      "s",
-		Topic:                     "t",
+		Name:                      subName,
+		Topic:                     topicName,
 		EnableExactlyOnceDelivery: true,
 	})
 	r := publisher.Publish(ctx, &Message{
@@ -326,10 +330,12 @@ func TestSubscribeMessageExpirationFlowControl(t *testing.T) {
 	defer client.Close()
 	defer srv.Close()
 
-	publisher := mustCreateTopic(t, client, "t")
+	topicName := fmt.Sprintf("projects/%s/topics/t", projName)
+	subName := fmt.Sprintf("projects/%s/subscriptions/s", subID)
+	publisher := mustCreateTopic(t, client, topicName)
 	s := mustCreateSubConfig(t, client, &pb.Subscription{
-		Name:  "s",
-		Topic: "t",
+		Name:  subName,
+		Topic: topicName,
 	})
 
 	s.ReceiveSettings.NumGoroutines = 1

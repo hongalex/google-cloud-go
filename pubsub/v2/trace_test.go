@@ -483,10 +483,12 @@ func TestTrace_TracingNotEnabled(t *testing.T) {
 		Data: []byte("test"),
 	}
 
-	publisher := mustCreateTopic(t, c, "t")
+	topicName := fmt.Sprintf("projects/%s/topics/t", projName)
+	subName := fmt.Sprintf("projects/%s/subscriptions/s", subID)
+	publisher := mustCreateTopic(t, c, topicName)
 	sub := mustCreateSubConfig(t, c, &pb.Subscription{
-		Name:  "s",
-		Topic: "t",
+		Name:  subName,
+		Topic: topicName,
 	})
 
 	r := publisher.Publish(ctx, m)

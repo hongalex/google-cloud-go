@@ -136,8 +136,8 @@ func TestFlushStopTopic(t *testing.T) {
 	c, srv := newFake(t)
 	defer c.Close()
 	defer srv.Close()
-
-	publisher := mustCreateTopic(t, c, "flush-topic")
+	topicName := fmt.Sprintf("projects/%s/topics/flush-topic", projName)
+	publisher := mustCreateTopic(t, c, topicName)
 
 	// Subsequent publishes after a flush should succeed.
 	publisher.Flush()
@@ -208,7 +208,7 @@ func TestPublishFlowControl_SignalError(t *testing.T) {
 	defer c.Close()
 	defer srv.Close()
 
-	topicName := fmt.Sprintf("projects/P/topics/fc-error-topic")
+	topicName := "projects/P/topics/fc-error-topic"
 	publisher := mustCreateTopic(t, c, topicName)
 	fc := FlowControlSettings{
 		MaxOutstandingMessages: 1,
@@ -278,7 +278,7 @@ func TestPublishFlowControl_SignalErrorOrderingKey(t *testing.T) {
 	publisher.PublishSettings.CountThreshold = 1
 	publisher.EnableMessageOrdering = true
 
-	// Sending a message that is too large reuslts in an error.
+	// Sending a message that is too large results in an error.
 	r1 := publishSingleMessageWithKey(ctx, publisher, "AAAAAAAAAAA", "a")
 	if _, err := r1.Get(ctx); err != ErrFlowControllerMaxOutstandingBytes {
 		t.Fatalf("r1.Get() got: %v, want %v", err, ErrFlowControllerMaxOutstandingBytes)

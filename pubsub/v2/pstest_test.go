@@ -66,7 +66,7 @@ func TestPSTest(t *testing.T) {
 	}
 	defer client.Close()
 
-	topicClient, err := vkit.NewTopicAdminClient(ctx)
+	topicClient, err := vkit.NewTopicAdminClient(ctx, option.WithGRPCConn(conn))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestPSTest(t *testing.T) {
 		panic(err)
 	}
 
-	subClient, err := vkit.NewSubscriptionAdminClient(ctx)
+	subClient, err := vkit.NewSubscriptionAdminClient(ctx, option.WithGRPCConn(conn))
 	if err != nil {
 		t.Fatal(err)
 	}
