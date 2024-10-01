@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	ipubsub "cloud.google.com/go/internal/pubsub"
 	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"cloud.google.com/go/pubsub/v2/internal/scheduler"
 	gax "github.com/googleapis/gax-go/v2"
@@ -207,7 +206,47 @@ var ErrTopicStopped = errors.New("pubsub: Stop has been called for this topic")
 //	if err != nil {
 //	    // TODO: Handle error.
 //	}
-type PublishResult = ipubsub.PublishResult
+//
+// A PublishResult holds the result from a call to Publish.
+type PublishResult struct {
+	ready    chan struct{}
+	serverID string
+	err      error
+}
+
+// Ready returns a channel that is closed when the result is ready.
+// When the Ready channel is closed, Get is guaranteed not to block.
+func (r *PublishResult) Ready() <-chan struct{} { return r.ready }
+
+// Get returns the server-generated message ID and/or error result of a Publish call.
+// Get blocks until the Publish call completes or the context is done.
+func (r *PublishResult) Get(ctx context.Context) (serverID string, err error) {
+	// If the result is already ready, return it even if the context is done.
+	select {
+	case <-r.Ready():
+		return r.serverID, r.err
+	default:
+	}
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case <-r.Ready():
+		return r.serverID, r.err
+	}
+}
+
+// NewPublishResult creates a PublishResult.
+func NewPublishResult() *PublishResult {
+	return &PublishResult{ready: make(chan struct{})}
+}
+
+// SetPublishResult sets the server ID and error for a publish result and closes
+// the Ready channel.
+func SetPublishResult(r *PublishResult, sid string, err error) {
+	r.serverID = sid
+	r.err = err
+	close(r.ready)
+}
 
 var errTopicOrderingNotEnabled = errors.New("Topic.EnableMessageOrdering=false, but an OrderingKey was set in Message. Please remove the OrderingKey or turn on Topic.EnableMessageOrdering")
 
@@ -232,9 +271,9 @@ func (t *Publisher) Publish(ctx context.Context, msg *Message) *PublishResult {
 		log.Printf("pubsub: cannot create context with tag in Publish: %v", err)
 	}
 
-	r := ipubsub.NewPublishResult()
+	r := NewPublishResult()
 	if !t.EnableMessageOrdering && msg.OrderingKey != "" {
-		ipubsub.SetPublishResult(r, "", errTopicOrderingNotEnabled)
+		SetPublishResult(r, "", errTopicOrderingNotEnabled)
 		spanRecordError(createSpan, errTopicOrderingNotEnabled)
 		return r
 	}
@@ -254,7 +293,7 @@ func (t *Publisher) Publish(ctx context.Context, msg *Message) *PublishResult {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	if t.stopped {
-		ipubsub.SetPublishResult(r, "", ErrTopicStopped)
+		SetPublishResult(r, "", ErrTopicStopped)
 		spanRecordError(createSpan, ErrTopicStopped)
 		return r
 	}
@@ -267,7 +306,7 @@ func (t *Publisher) Publish(ctx context.Context, msg *Message) *PublishResult {
 	}
 	if err := t.flowController.acquire(ctx, msgSize); err != nil {
 		t.scheduler.Pause(msg.OrderingKey)
-		ipubsub.SetPublishResult(r, "", err)
+		SetPublishResult(r, "", err)
 		spanRecordError(fcSpan, err)
 		return r
 	}
@@ -293,7 +332,7 @@ func (t *Publisher) Publish(ctx context.Context, msg *Message) *PublishResult {
 
 	if err := t.scheduler.Add(msg.OrderingKey, bmsg, msgSize); err != nil {
 		t.scheduler.Pause(msg.OrderingKey)
-		ipubsub.SetPublishResult(r, "", err)
+		SetPublishResult(r, "", err)
 		spanRecordError(createSpan, err)
 	}
 
@@ -515,10 +554,10 @@ func (t *Publisher) publishMessageBundle(ctx context.Context, bms []*bundledMess
 	for i, bm := range bms {
 		t.flowController.release(ctx, bm.size)
 		if err != nil {
-			ipubsub.SetPublishResult(bm.res, "", err)
+			SetPublishResult(bm.res, "", err)
 			spanRecordError(bm.createSpan, err)
 		} else {
-			ipubsub.SetPublishResult(bm.res, res.MessageIds[i], nil)
+			SetPublishResult(bm.res, res.MessageIds[i], nil)
 			if t.enableTracing {
 				bm.createSpan.SetAttributes(semconv.MessagingMessageIDKey.String(res.MessageIds[i]))
 			}
