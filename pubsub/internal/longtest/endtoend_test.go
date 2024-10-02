@@ -405,7 +405,7 @@ func cleanupTopic(ctx context.Context, client *pubsub.Client) error {
 			if time.Since(timeTCreated) > expireAge {
 				log.Printf("deleting topic %q", tID)
 				if err := t.Delete(ctx); err != nil {
-					return fmt.Errorf("Delete topic: %v: %v", t.Name(), err)
+					return fmt.Errorf("Delete topic: %v: %v", t.String(), err)
 				}
 			}
 		}
